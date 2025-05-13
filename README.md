@@ -35,4 +35,6 @@ It will only stop in the following cases:
 
 If villagers are present but their trades are out of stock, it will go into a temporary waiting state and continue after.
 
+## Thanks
 
+Special thanks to @Devin for providing a reference trading module and explanation
