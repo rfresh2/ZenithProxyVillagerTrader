@@ -1,4 +1,4 @@
-package org.example;
+package dev.zenith.trader;
 
 // The constants are replaced before compilation
 public class BuildConstants {
