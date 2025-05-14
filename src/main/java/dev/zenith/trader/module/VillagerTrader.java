@@ -248,6 +248,7 @@ public class VillagerTrader extends Module {
                     int baseCost = trade.getFirstInput().getAmount();
                     int addnlDemandCost = Math.max(0, MathHelper.floorI((trade.getFirstInput().getAmount() * trade.getDemand() * trade.getPriceMultiplier())));
                     int cost = MathHelper.clamp(baseCost + addnlDemandCost + trade.getSpecialPrice(), 1, inputStackSize);
+                    if (cost > PLUGIN_CONFIG.maxSpendPerTrade) continue;
                     int availableTradeCount = trade.getMaxUses() - trade.getNumUses(); // each shift click can consume many trades
                     int maxTradesPerInputStack = inputStackSize / cost;
                     int outputsStackSize = ItemRegistry.REGISTRY.get(trade.getOutput().getId()).stackSize();

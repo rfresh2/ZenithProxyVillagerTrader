@@ -144,6 +144,11 @@ public class VillagerTraderCommand extends Command {
                 PLUGIN_CONFIG.villagerTradeRestockWaitSeconds = getInteger(c, "seconds");
                 c.getSource().getEmbed()
                     .title("Villager Trade Restock Wait Set");
+            })))
+            .then(literal("maxSpendPerTrade").then(argument("spend", integer(1, 1000)).executes(c -> {
+                PLUGIN_CONFIG.maxSpendPerTrade = getInteger(c, "spend");
+                c.getSource().getEmbed()
+                    .title("Max Spend Per Trade Set");
             })));
     }
 
@@ -157,6 +162,7 @@ public class VillagerTraderCommand extends Command {
             .addField("Restock Chest", PLUGIN_CONFIG.restockChest)
             .addField("Store Chest", PLUGIN_CONFIG.storeChest)
             .addField("Villager Trade Restock Wait", PLUGIN_CONFIG.villagerTradeRestockWaitSeconds + "s")
+            .addField("Max Spend Per Trade", PLUGIN_CONFIG.maxSpendPerTrade)
             .primaryColor();
     }
 }

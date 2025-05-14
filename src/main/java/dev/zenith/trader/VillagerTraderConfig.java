@@ -17,4 +17,5 @@ public class VillagerTraderConfig {
     public BlockPos storeChest = BlockPos.ZERO;
     public int outputThreshold = 1000;
     public int villagerTradeRestockWaitSeconds = 60;
+    public int maxSpendPerTrade = 99;
 }
