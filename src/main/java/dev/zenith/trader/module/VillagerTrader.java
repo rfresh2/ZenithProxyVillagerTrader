@@ -57,6 +57,8 @@ public class VillagerTrader extends Module {
     private PathingRequestFuture storePathingFuture = PathingRequestFuture.rejected;
     private RequestFuture storeDepositFuture = RequestFuture.rejected;
     private final Timer waitForRestockTimer = Timers.tickTimer();
+    private final Timer waitForInteractTimer = Timers.tickTimer();
+    private final long waitForInteractDelayTicks = 20L;
 
     @Override
     public boolean enabledSetting() {
@@ -104,6 +106,7 @@ public class VillagerTrader extends Module {
                 if (emeraldCount + (emeraldBlockCount * 9) < PLUGIN_CONFIG.restockStacks) {
                     var restockChest = PLUGIN_CONFIG.restockChest;
                     restockPathingFuture = BARITONE.rightClickBlock(restockChest.x(), restockChest.y(), restockChest.z());
+                    restockPathingFuture.addExecutedListener(f -> waitForInteractTimer.reset());
                     setState(State.RESTOCK_PATHING_TO_CHEST);
                 } else if (emeraldBlockCount > 0) {
                     setState(State.RESTOCK_CRAFT_EMERALD_BLOCKS);
@@ -128,7 +131,9 @@ public class VillagerTrader extends Module {
                             .build());
                         setState(State.RESTOCK_WITHDRAWING_FROM_CHEST);
                     } else {
-                        setState(State.RESTOCK_GO_TO_CHEST);
+                        if (waitForInteractTimer.tick(waitForInteractDelayTicks)) {
+                            setState(State.RESTOCK_GO_TO_CHEST);
+                        }
                     }
                 }
             }
@@ -217,17 +222,24 @@ public class VillagerTrader extends Module {
                 var nextVillager = nextVillagerOptional.get();
                 offersPacket = null;
                 interactWithVillagerFuture = BARITONE.rightClickEntity(nextVillager);
+                interactWithVillagerFuture.addExecutedListener(f -> {
+                    waitForInteractTimer.reset();
+                });
                 interactedVillagersCache.put(nextVillager.getEntityId(), true);
                 setState(State.TRADING_AWAIT_INTERACT_WITH_VILLAGER);
             }
             case TRADING_AWAIT_INTERACT_WITH_VILLAGER -> {
                 if (interactWithVillagerFuture.isCompleted()) {
                     if (offersPacket == null) {
-                        setState(State.TRADING_INTERACT_WITH_VILLAGER);
+                        if (waitForInteractTimer.tick(waitForInteractDelayTicks)) {
+                            setState(State.TRADING_INTERACT_WITH_VILLAGER);
+                        }
                         return;
                     }
                     if (offersPacket.getContainerId() != CACHE.getPlayerCache().getInventoryCache().getOpenContainerId()) {
-                        setState(State.TRADING_INTERACT_WITH_VILLAGER);
+                        if (waitForInteractTimer.tick(waitForInteractDelayTicks)) {
+                            setState(State.TRADING_INTERACT_WITH_VILLAGER);
+                        }
                         return;
                     }
                     setState(State.TRADING_TRY_START_PURCHASE);
@@ -280,13 +292,16 @@ public class VillagerTrader extends Module {
             case STORE_GO_TO_CHEST -> {
                 var storeChest = PLUGIN_CONFIG.storeChest;
                 storePathingFuture = BARITONE.rightClickBlock(storeChest.x(), storeChest.y(), storeChest.z());
+                storePathingFuture.addExecutedListener(f -> waitForInteractTimer.reset());
                 setState(State.STORE_DEPOSIT);
             }
             case STORE_DEPOSIT -> {
                 if (storePathingFuture.isCompleted()) {
                     var openContainer = CACHE.getPlayerCache().getInventoryCache().getOpenContainer();
                     if (openContainer.getType() != ContainerType.GENERIC_9X6) {
-                        setState(State.STORE_GO_TO_CHEST);
+                        if (waitForInteractTimer.tick(waitForInteractDelayTicks)) {
+                            setState(State.STORE_GO_TO_CHEST);
+                        }
                         return;
                     }
                     var outputItemIds = getBuyItemIds();
