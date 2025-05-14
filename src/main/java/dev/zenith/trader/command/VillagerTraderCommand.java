@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 import static com.mojang.brigadier.arguments.IntegerArgumentType.getInteger;
 import static com.mojang.brigadier.arguments.IntegerArgumentType.integer;
 import static com.mojang.brigadier.arguments.StringArgumentType.getString;
+import static com.zenith.Globals.CONFIG;
 import static com.zenith.Globals.MODULE;
 import static com.zenith.command.brigadier.BlockPosArgument.blockPos;
 import static com.zenith.command.brigadier.BlockPosArgument.getBlockPos;
@@ -159,8 +160,8 @@ public class VillagerTraderCommand extends Command {
             .addField("Professions", PLUGIN_CONFIG.villagerProfessions.stream().map(p -> p.name().toLowerCase()).collect(Collectors.joining(", ", "[", "]")))
             .addField("Buy Items", "[" + String.join(", ", PLUGIN_CONFIG.buyItems) + "]")
             .addField("Restock Stacks", PLUGIN_CONFIG.restockStacks)
-            .addField("Restock Chest", PLUGIN_CONFIG.restockChest)
-            .addField("Store Chest", PLUGIN_CONFIG.storeChest)
+            .addField("Restock Chest", "||" + (CONFIG.discord.reportCoords ? PLUGIN_CONFIG.restockChest : "Coords disabled") + "||")
+            .addField("Store Chest", "||" + (CONFIG.discord.reportCoords ? PLUGIN_CONFIG.storeChest : "Coords disabled") + "||")
             .addField("Villager Trade Restock Wait", PLUGIN_CONFIG.villagerTradeRestockWaitSeconds + "s")
             .addField("Max Spend Per Trade", PLUGIN_CONFIG.maxSpendPerTrade)
             .primaryColor();
