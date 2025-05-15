@@ -282,7 +282,7 @@ public class VillagerTrader extends Module {
             }
             case TRADING_AWAIT_PURCHASE -> {
                 if (purchaseFuture.isCompleted()) {
-                    if (countBuyItem() >= PLUGIN_CONFIG.outputThreshold || countItem(ItemRegistry.EMERALD.id()) < 64) {
+                    if (countBuyItemSlotUsages() > PLUGIN_CONFIG.buyItemStoreStacksThreshold || countItem(ItemRegistry.EMERALD.id()) < 64) {
                         setState(State.STORE_GO_TO_CHEST);
                     } else {
                         setState(State.TRADING_INTERACT_WITH_VILLAGER);
@@ -407,6 +407,25 @@ public class VillagerTrader extends Module {
         int count = 0;
         for (int id : getBuyItemIds()) {
             count += countItem(id);
+        }
+        return count;
+    }
+
+    private int countSlotUsages(int id) {
+        int count = 0;
+        for (var item : CACHE.getPlayerCache().getPlayerInventory()) {
+            if (item == Container.EMPTY_STACK) continue;
+            if (item.getId() == id) {
+                count += item.getAmount();
+            }
+        }
+        return count;
+    }
+
+    private int countBuyItemSlotUsages() {
+        int count = 0;
+        for (int id : getBuyItemIds()) {
+            count += countSlotUsages(id);
         }
         return count;
     }
