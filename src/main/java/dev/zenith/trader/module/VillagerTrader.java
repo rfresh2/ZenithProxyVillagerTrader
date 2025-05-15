@@ -191,7 +191,7 @@ public class VillagerTrader extends Module {
                 }
             }
             case TRADING_INTERACT_WITH_VILLAGER -> {
-                int buyItemCount = countBuyItem();
+                int buyItemCount = countBuyItemSlotUsages();
                 if (buyItemCount > PLUGIN_CONFIG.buyItemStoreStacksThreshold) {
                     setState(State.STORE_GO_TO_CHEST);
                     return;
