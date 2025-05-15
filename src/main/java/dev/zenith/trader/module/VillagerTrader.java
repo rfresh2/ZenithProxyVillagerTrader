@@ -117,7 +117,7 @@ public class VillagerTrader extends Module {
             case RESTOCK_PATHING_TO_CHEST -> {
                 if (restockPathingFuture.isCompleted()) {
                     var openContainer = CACHE.getPlayerCache().getInventoryCache().getOpenContainer();
-                    if (openContainer.getType() == ContainerType.GENERIC_9X6) {
+                    if (openContainer.getContainerId() != 0) {
                         var actions = Lists.newArrayList(
                             InventoryActionMacros.withdraw(
                                 openContainer.getContainerId(),
@@ -300,6 +300,7 @@ public class VillagerTrader extends Module {
                     var openContainer = CACHE.getPlayerCache().getInventoryCache().getOpenContainer();
                     if (openContainer.getType() != ContainerType.GENERIC_9X6) {
                         if (waitForInteractTimer.tick(waitForInteractDelayTicks)) {
+                    if (openContainer.getContainerId() != 0) {
                             setState(State.STORE_GO_TO_CHEST);
                         }
                         return;
