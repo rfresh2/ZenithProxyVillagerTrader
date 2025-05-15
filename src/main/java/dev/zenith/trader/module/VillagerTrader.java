@@ -318,12 +318,14 @@ public class VillagerTrader extends Module {
             case STORE_AWAIT_DEPOSIT -> {
                 if (storeDepositFuture.isCompleted()) {
                     int buyItemCount = countBuyItem();
-                    if (buyItemCount > 0 && waitForInteractTimer.tick(PLUGIN_CONFIG.waitForInteractTimeoutTicks)) {
-                        discordNotification(Embed.builder()
-                            .title("Villager Trader")
-                            .description("Unable to deposit buy items. Disabling.")
-                            .errorColor());
-                        stop();
+                    if (buyItemCount > 0) {
+                        if (waitForInteractTimer.tick(PLUGIN_CONFIG.waitForInteractTimeoutTicks)) {
+                            discordNotification(Embed.builder()
+                                .title("Villager Trader")
+                                .description("Unable to deposit buy items. Disabling.")
+                                .errorColor());
+                            stop();
+                        }
                         return;
                     }
                     setState(State.RESTOCK_GO_TO_CHEST);
