@@ -28,9 +28,7 @@ import org.geysermc.mcprotocollib.protocol.data.ProtocolState;
 import org.geysermc.mcprotocollib.protocol.data.game.entity.metadata.MetadataTypes;
 import org.geysermc.mcprotocollib.protocol.data.game.entity.metadata.VillagerData;
 import org.geysermc.mcprotocollib.protocol.data.game.entity.type.EntityType;
-import org.geysermc.mcprotocollib.protocol.data.game.inventory.ContainerType;
 import org.geysermc.mcprotocollib.protocol.data.game.inventory.ShiftClickItemAction;
-import org.geysermc.mcprotocollib.protocol.data.game.item.ItemStack;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.inventory.ClientboundMerchantOffersPacket;
 
 import java.time.Duration;
@@ -58,7 +56,6 @@ public class VillagerTrader extends Module {
     private RequestFuture storeDepositFuture = RequestFuture.rejected;
     private final Timer waitForRestockTimer = Timers.tickTimer();
     private final Timer waitForInteractTimer = Timers.tickTimer();
-    private final long waitForInteractDelayTicks = 20L;
 
     @Override
     public boolean enabledSetting() {
@@ -131,7 +128,7 @@ public class VillagerTrader extends Module {
                             .build());
                         setState(State.RESTOCK_WITHDRAWING_FROM_CHEST);
                     } else {
-                        if (waitForInteractTimer.tick(waitForInteractDelayTicks)) {
+                        if (waitForInteractTimer.tick(PLUGIN_CONFIG.waitForInteractTimeoutTicks)) {
                             setState(State.RESTOCK_GO_TO_CHEST);
                         }
                     }
@@ -195,7 +192,7 @@ public class VillagerTrader extends Module {
             }
             case TRADING_INTERACT_WITH_VILLAGER -> {
                 int buyItemCount = countBuyItem();
-                if (buyItemCount > PLUGIN_CONFIG.outputThreshold) {
+                if (buyItemCount > PLUGIN_CONFIG.buyItemStoreStacksThreshold) {
                     setState(State.STORE_GO_TO_CHEST);
                     return;
                 }
@@ -231,13 +228,13 @@ public class VillagerTrader extends Module {
             case TRADING_AWAIT_INTERACT_WITH_VILLAGER -> {
                 if (interactWithVillagerFuture.isCompleted()) {
                     if (offersPacket == null) {
-                        if (waitForInteractTimer.tick(waitForInteractDelayTicks)) {
+                        if (waitForInteractTimer.tick(PLUGIN_CONFIG.waitForInteractTimeoutTicks)) {
                             setState(State.TRADING_INTERACT_WITH_VILLAGER);
                         }
                         return;
                     }
                     if (offersPacket.getContainerId() != CACHE.getPlayerCache().getInventoryCache().getOpenContainerId()) {
-                        if (waitForInteractTimer.tick(waitForInteractDelayTicks)) {
+                        if (waitForInteractTimer.tick(PLUGIN_CONFIG.waitForInteractTimeoutTicks)) {
                             setState(State.TRADING_INTERACT_WITH_VILLAGER);
                         }
                         return;
@@ -298,9 +295,8 @@ public class VillagerTrader extends Module {
             case STORE_DEPOSIT -> {
                 if (storePathingFuture.isCompleted()) {
                     var openContainer = CACHE.getPlayerCache().getInventoryCache().getOpenContainer();
-                    if (openContainer.getType() != ContainerType.GENERIC_9X6) {
-                        if (waitForInteractTimer.tick(waitForInteractDelayTicks)) {
                     if (openContainer.getContainerId() != 0) {
+                        if (waitForInteractTimer.tick(PLUGIN_CONFIG.waitForInteractTimeoutTicks)) {
                             setState(State.STORE_GO_TO_CHEST);
                         }
                         return;
@@ -386,11 +382,14 @@ public class VillagerTrader extends Module {
     }
 
     private int countItem(int id) {
-        return CACHE.getPlayerCache().getPlayerInventory().stream()
-            .filter(item -> item != Container.EMPTY_STACK)
-            .filter(item -> item.getId() == id)
-            .mapToInt(ItemStack::getAmount)
-            .sum();
+        int count = 0;
+        for (var item : CACHE.getPlayerCache().getPlayerInventory()) {
+            if (item == Container.EMPTY_STACK) continue;
+            if (item.getId() == id) {
+                count += item.getAmount();
+            }
+        }
+        return count;
     }
 
     private int countInvEmptySlots() {

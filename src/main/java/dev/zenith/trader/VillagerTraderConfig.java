@@ -12,10 +12,11 @@ public class VillagerTraderConfig {
     public boolean enabled = false;
     public ArrayList<VillagerProfession> villagerProfessions = Lists.newArrayList(VillagerProfession.CLERIC);
     public ArrayList<String> buyItems = Lists.newArrayList(ItemRegistry.EXPERIENCE_BOTTLE.name());
-    public int restockStacks = 4;
+    public int restockStacks = 2;
     public BlockPos restockChest = BlockPos.ZERO;
     public BlockPos storeChest = BlockPos.ZERO;
     public int buyItemStoreStacksThreshold = 10;
     public int villagerTradeRestockWaitSeconds = 60;
     public int maxSpendPerTrade = 99;
+    public long waitForInteractTimeoutTicks = 20L;
 }
