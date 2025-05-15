@@ -416,7 +416,7 @@ public class VillagerTrader extends Module {
         for (var item : CACHE.getPlayerCache().getPlayerInventory()) {
             if (item == Container.EMPTY_STACK) continue;
             if (item.getId() == id) {
-                count += item.getAmount();
+                count++;
             }
         }
         return count;
