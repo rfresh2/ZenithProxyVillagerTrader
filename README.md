@@ -21,7 +21,11 @@ You need the following setup ingame:
 * `trader buyItems clear`
 * `trader restockChest <x> <y> <z>` 
 * `trader storeChest <x> <y> <z>`
-* `trader restockStacks <int>` -> If restocking emerald blocks keep this around low, around 4 is fine
+* `trader restockStacks <int>` -> how many stacks of emeralds/emerald blocks to restock. Emerald blocks are crafted down to emeralds.
+* `trader villagerTradeRestockWait <seconds>` -> seconds it waits after all villagers are out of stock. 1200 = 1 minecraft day
+* `trader maxSpendPerTrade <int>` -> max emeralds to spend per trade.
+* `trader buyItemStoreStacksThreshold <int>` -> how many stacks/slots of items to buy before it stores them
+* `trader waitForInteractTimeout <ticks>` -> timeout for server interactions like opening the villager trade window
 
 ### Actions Loop
 

@@ -9,6 +9,7 @@ import com.zenith.discord.Embed;
 import dev.zenith.trader.module.VillagerTrader;
 
 import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.mojang.brigadier.arguments.IntegerArgumentType.getInteger;
@@ -32,7 +33,15 @@ public class VillagerTraderCommand extends Command {
             .name("trader")
             .category(CommandCategory.MODULE)
             .description("""
-              Trades with villagers
+              Buys items from villagers with emeralds.
+              
+              Automatically restocks emeralds, trades with villagers, and stores the bought items
+              
+              `restockStacks` -> how many stacks of emeralds/emerald blocks to restock. Emerald blocks are crafted down to emeralds.
+              `villagerTradeRestockWait` -> seconds it waits after all villagers are out of stock. 1200 = 1 minecraft day
+              `maxSpendPerTrade` -> max emeralds to spend per trade
+              `buyItemStoreStacksThreshold` -> how many stacks/slots of items to buy before it stores them
+              `waitForInteractTimeout` -> timeout for server interactions like opening villager trade window
               """)
             .usageLines(
                 "on/off",
@@ -43,7 +52,10 @@ public class VillagerTraderCommand extends Command {
                 "restockStacks <int>",
                 "restockChest <x> <y> <z>",
                 "storeChest <x> <y> <z>",
-                "villagerTradeRestockWait <seconds>"
+                "villagerTradeRestockWait <seconds>",
+                "maxSpendPerTrade <int>",
+                "buyItemStoreStacksThreshold <int>",
+                "waitForInteractTimeout <ticks>"
             )
             .build();
     }
@@ -141,7 +153,7 @@ public class VillagerTraderCommand extends Command {
                 c.getSource().getEmbed()
                     .title("Store Chest Set");
             })))
-            .then(literal("villagerTradeRestockWait").then(argument("seconds", integer(1, 3600)).executes(c -> {
+            .then(literal("villagerTradeRestockWait").then(argument("seconds", integer(1, (int) TimeUnit.MINUTES.toSeconds(30))).executes(c -> {
                 PLUGIN_CONFIG.villagerTradeRestockWaitSeconds = getInteger(c, "seconds");
                 c.getSource().getEmbed()
                     .title("Villager Trade Restock Wait Set");
@@ -150,6 +162,16 @@ public class VillagerTraderCommand extends Command {
                 PLUGIN_CONFIG.maxSpendPerTrade = getInteger(c, "spend");
                 c.getSource().getEmbed()
                     .title("Max Spend Per Trade Set");
+            })))
+            .then(literal("buyItemStoreStacksThreshold").then(argument("stackCount", integer(1, 36)).executes(c -> {
+                PLUGIN_CONFIG.buyItemStoreStacksThreshold = getInteger(c, "stackCount");
+                c.getSource().getEmbed()
+                    .title("Buy Item Store Stacks Threshold Set");
+            })))
+            .then(literal("waitForInteractTimeout").then(argument("ticks", integer(1, 1000)).executes(c -> {;
+                PLUGIN_CONFIG.waitForInteractTimeoutTicks = getInteger(c, "ticks");
+                c.getSource().getEmbed()
+                    .title("Wait For Interact Timeout Set");
             })));
     }
 
@@ -164,6 +186,8 @@ public class VillagerTraderCommand extends Command {
             .addField("Store Chest", "||" + (CONFIG.discord.reportCoords ? PLUGIN_CONFIG.storeChest : "Coords disabled") + "||")
             .addField("Villager Trade Restock Wait", PLUGIN_CONFIG.villagerTradeRestockWaitSeconds + "s")
             .addField("Max Spend Per Trade", PLUGIN_CONFIG.maxSpendPerTrade)
+            .addField("Buy Item Store Stacks Threshold", PLUGIN_CONFIG.buyItemStoreStacksThreshold + " stacks")
+            .addField("Wait For Interact Timeout", PLUGIN_CONFIG.waitForInteractTimeoutTicks + " ticks")
             .primaryColor();
     }
 }
