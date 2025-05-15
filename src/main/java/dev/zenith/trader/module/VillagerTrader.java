@@ -295,7 +295,7 @@ public class VillagerTrader extends Module {
             case STORE_DEPOSIT -> {
                 if (storePathingFuture.isCompleted()) {
                     var openContainer = CACHE.getPlayerCache().getInventoryCache().getOpenContainer();
-                    if (openContainer.getContainerId() != 0) {
+                    if (openContainer.getContainerId() == 0) {
                         if (waitForInteractTimer.tick(PLUGIN_CONFIG.waitForInteractTimeoutTicks)) {
                             setState(State.STORE_GO_TO_CHEST);
                         }
