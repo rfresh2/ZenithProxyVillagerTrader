@@ -219,9 +219,7 @@ public class VillagerTrader extends Module {
                 var nextVillager = nextVillagerOptional.get();
                 offersPacket = null;
                 interactWithVillagerFuture = BARITONE.rightClickEntity(nextVillager);
-                interactWithVillagerFuture.addExecutedListener(f -> {
-                    waitForInteractTimer.reset();
-                });
+                interactWithVillagerFuture.addExecutedListener(f -> waitForInteractTimer.reset());
                 interactedVillagersCache.put(nextVillager.getEntityId(), true);
                 setState(State.TRADING_AWAIT_INTERACT_WITH_VILLAGER);
             }
@@ -313,13 +311,14 @@ public class VillagerTrader extends Module {
                         .priority(PRIORITY)
                         .actions(actions)
                         .build());
+                    storePathingFuture.addExecutedListener(f -> waitForInteractTimer.reset());
                     setState(State.STORE_AWAIT_DEPOSIT);
                 }
             }
             case STORE_AWAIT_DEPOSIT -> {
                 if (storeDepositFuture.isCompleted()) {
                     int buyItemCount = countBuyItem();
-                    if (buyItemCount > 0) {
+                    if (buyItemCount > 0 && waitForInteractTimer.tick(PLUGIN_CONFIG.waitForInteractTimeoutTicks)) {
                         discordNotification(Embed.builder()
                             .title("Villager Trader")
                             .description("Unable to deposit buy items. Disabling.")
