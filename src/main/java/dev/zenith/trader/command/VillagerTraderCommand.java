@@ -49,12 +49,13 @@ public class VillagerTraderCommand extends Command {
                 "professions clear",
                 "buyItems add/del <item>",
                 "buyItems clear",
-                "restockStacks <int>",
+                "restockStacks <stacks>",
+                "restockEmeraldCountThreshold <amount>",
                 "restockChest <x> <y> <z>",
                 "storeChest <x> <y> <z>",
                 "villagerTradeRestockWait <seconds>",
-                "maxSpendPerTrade <int>",
-                "buyItemStoreStacksThreshold <int>",
+                "maxSpendPerTrade <amount>",
+                "buyItemStoreStacksThreshold <stacks>",
                 "waitForInteractTimeout <ticks>"
             )
             .build();
@@ -143,6 +144,11 @@ public class VillagerTraderCommand extends Command {
                 c.getSource().getEmbed()
                     .title("Restock Stacks Set");
             })))
+            .then(literal("restockEmeraldCountThreshold").then(argument("amount", integer(1, 250)).executes(c -> {
+                PLUGIN_CONFIG.restockEmeraldCountThreshold = getInteger(c, "amount");
+                c.getSource().getEmbed()
+                    .title("Restock Emerald Count Threshold Set");
+            })))
             .then(literal("restockChest").then(argument("pos", blockPos()).executes(c -> {
                 PLUGIN_CONFIG.restockChest = getBlockPos(c, "pos");
                 c.getSource().getEmbed()
@@ -182,6 +188,7 @@ public class VillagerTraderCommand extends Command {
             .addField("Professions", PLUGIN_CONFIG.villagerProfessions.stream().map(p -> p.name().toLowerCase()).collect(Collectors.joining(", ", "[", "]")))
             .addField("Buy Items", "[" + String.join(", ", PLUGIN_CONFIG.buyItems) + "]")
             .addField("Restock Stacks", PLUGIN_CONFIG.restockStacks)
+            .addField("Restock Emerald Count Threshold", PLUGIN_CONFIG.restockEmeraldCountThreshold)
             .addField("Restock Chest", "||" + (CONFIG.discord.reportCoords ? PLUGIN_CONFIG.restockChest : "Coords disabled") + "||")
             .addField("Store Chest", "||" + (CONFIG.discord.reportCoords ? PLUGIN_CONFIG.storeChest : "Coords disabled") + "||")
             .addField("Villager Trade Restock Wait", PLUGIN_CONFIG.villagerTradeRestockWaitSeconds + "s")

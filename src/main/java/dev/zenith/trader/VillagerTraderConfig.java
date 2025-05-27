@@ -13,6 +13,7 @@ public class VillagerTraderConfig {
     public ArrayList<VillagerProfession> villagerProfessions = Lists.newArrayList(VillagerProfession.CLERIC);
     public ArrayList<String> buyItems = Lists.newArrayList(ItemRegistry.EXPERIENCE_BOTTLE.name());
     public int restockStacks = 2;
+    public int restockEmeraldCountThreshold = 64;
     public BlockPos restockChest = BlockPos.ZERO;
     public BlockPos storeChest = BlockPos.ZERO;
     public int buyItemStoreStacksThreshold = 10;

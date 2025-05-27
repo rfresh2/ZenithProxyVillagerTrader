@@ -100,7 +100,7 @@ public class VillagerTrader extends Module {
             case RESTOCK_GO_TO_CHEST -> {
                 int emeraldCount = countItem(ItemRegistry.EMERALD.id());
                 int emeraldBlockCount = countItem(ItemRegistry.EMERALD_BLOCK.id());
-                if (emeraldCount + (emeraldBlockCount * 9) < PLUGIN_CONFIG.restockStacks) {
+                if (emeraldCount + (emeraldBlockCount * 9) < PLUGIN_CONFIG.restockEmeraldCountThreshold) {
                     var restockChest = PLUGIN_CONFIG.restockChest;
                     restockPathingFuture = BARITONE.rightClickBlock(restockChest.x(), restockChest.y(), restockChest.z());
                     restockPathingFuture.addExecutedListener(f -> waitForInteractTimer.reset());
@@ -138,7 +138,7 @@ public class VillagerTrader extends Module {
                 if (restockWithdrawFuture.isCompleted()) {
                     int emeraldCount = countItem(ItemRegistry.EMERALD.id());
                     int emeraldBlockCount = countItem(ItemRegistry.EMERALD_BLOCK.id());
-                    if (emeraldCount + (emeraldBlockCount * 9) < PLUGIN_CONFIG.restockStacks) {
+                    if (emeraldCount + (emeraldBlockCount * 9) < PLUGIN_CONFIG.restockEmeraldCountThreshold) {
                         discordNotification(Embed.builder()
                             .title("Villager Trader")
                             .description("Not enough emeralds to continue trading. Disabling.")
@@ -277,8 +277,10 @@ public class VillagerTrader extends Module {
             }
             case TRADING_AWAIT_PURCHASE -> {
                 if (purchaseFuture.isCompleted()) {
-                    if (countBuyItemSlotUsages() > PLUGIN_CONFIG.buyItemStoreStacksThreshold || countItem(ItemRegistry.EMERALD.id()) < 64) {
+                    if (countBuyItemSlotUsages() > PLUGIN_CONFIG.buyItemStoreStacksThreshold) {
                         setState(State.STORE_GO_TO_CHEST);
+                    } else if (countItem(ItemRegistry.EMERALD.id()) < PLUGIN_CONFIG.restockEmeraldCountThreshold) {
+                        setState(State.RESTOCK_GO_TO_CHEST);
                     } else {
                         setState(State.TRADING_INTERACT_WITH_VILLAGER);
                     }
