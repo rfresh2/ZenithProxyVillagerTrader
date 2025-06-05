@@ -6,7 +6,6 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Lists;
 import com.zenith.cache.data.entity.EntityLiving;
 import com.zenith.cache.data.inventory.Container;
-import com.zenith.discord.Embed;
 import com.zenith.event.client.ClientBotTick;
 import com.zenith.feature.inventory.InventoryActionRequest;
 import com.zenith.feature.inventory.actions.*;
@@ -137,12 +136,7 @@ public class VillagerTrader extends Module {
                     int emeraldCount = countItem(ItemRegistry.EMERALD.id());
                     int emeraldBlockCount = countItem(ItemRegistry.EMERALD_BLOCK.id());
                     if (emeraldCount + (emeraldBlockCount * 9) < PLUGIN_CONFIG.restockEmeraldCountThreshold) {
-                        discordNotification(Embed.builder()
-                            .title("Villager Trader")
-                            .description("Not enough emeralds to continue trading. Disabling.")
-                            .errorColor());
-                        stop();
-                        return;
+                        warn("We have fewer than {} emeralds after restocking, trying to continue trading anyway", PLUGIN_CONFIG.restockEmeraldCountThreshold);
                     }
                     if (emeraldBlockCount > 0) {
                         setState(State.RESTOCK_CRAFT_EMERALD_BLOCKS);
@@ -197,11 +191,8 @@ public class VillagerTrader extends Module {
                 var nextVillagerOptional = nextVillager();
                 if (nextVillagerOptional.isEmpty()) {
                     if (interactedVillagersCache.asMap().isEmpty()) {
-                        discordNotification(Embed.builder()
-                            .title("Villager Trader")
-                            .description("No villagers to trade with. Disabling.")
-                            .errorColor());
-                        stop();
+                        warn("No villagers found to trade with, going back to restock chest");
+                        setState(State.RESTOCK_GO_TO_CHEST);
                     } else {
                         if (countBuyItem() > 0) {
                             setState(State.STORE_GO_TO_CHEST);
@@ -320,11 +311,8 @@ public class VillagerTrader extends Module {
                     int buyItemCount = countBuyItem();
                     if (buyItemCount > 0) {
                         if (waitForInteractTimer.tick(PLUGIN_CONFIG.waitForInteractTimeoutTicks)) {
-                            discordNotification(Embed.builder()
-                                .title("Villager Trader")
-                                .description("Unable to deposit buy items. Disabling.")
-                                .errorColor());
-                            stop();
+                            warn("Unable to fully deposit buy items, trying to continue anyway");
+                            setState(State.RESTOCK_GO_TO_CHEST);
                         }
                         return;
                     }
