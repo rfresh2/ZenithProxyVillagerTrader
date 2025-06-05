@@ -31,7 +31,6 @@ import org.geysermc.mcprotocollib.protocol.data.game.entity.type.EntityType;
 import org.geysermc.mcprotocollib.protocol.data.game.inventory.ShiftClickItemAction;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.inventory.ClientboundMerchantOffersPacket;
 
-import java.time.Duration;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -44,7 +43,6 @@ public class VillagerTrader extends Module {
     public static final int PRIORITY = 9000;
     private State state = State.RESTOCK_GO_TO_CHEST;
     private final Cache<Integer, Boolean> interactedVillagersCache = CacheBuilder.newBuilder()
-        .expireAfterWrite(Duration.ofMinutes(1))
         .build();
     private PathingRequestFuture restockPathingFuture = PathingRequestFuture.rejected;
     private RequestFuture restockWithdrawFuture = RequestFuture.rejected;
@@ -335,6 +333,7 @@ public class VillagerTrader extends Module {
             }
             case WAITING_FOR_VILLAGER_TRADE_RESTOCK -> {
                 if (waitForRestockTimer.tick(20L * PLUGIN_CONFIG.villagerTradeRestockWaitSeconds)) {
+                    interactedVillagersCache.invalidateAll();
                     setState(State.RESTOCK_GO_TO_CHEST);
                 }
             }
