@@ -231,24 +231,24 @@ public class VillagerTrader extends Module {
             }
             case TRADING_TRY_START_PURCHASE -> {
                 var buyItemIds = getBuyItemIds();
-                var trades = offersPacket.getTrades();
+                var trades = offersPacket.getOffers();
                 List<InventoryAction> actions = Lists.newArrayList();
-                for (int i = 0; i < trades.length; i++) {
-                    var trade = trades[i];
-                    if (trade.isTradeDisabled()) continue;
-                    if (trade.getOutput() == null) continue;
-                    if (!buyItemIds.contains(trade.getOutput().getId())) continue;
-                    if (trade.getFirstInput().getId() != ItemRegistry.EMERALD.id()) continue;
-                    if (trade.getSecondInput() != null) continue;
+                for (int i = 0; i < trades.size(); i++) {
+                    var trade = trades.get(i);
+                    if (trade.isOutOfStock()) continue;
+                    if (trade.getResult() == null) continue;
+                    if (!buyItemIds.contains(trade.getResult().getId())) continue;
+                    if (trade.getItemCostA().itemId() != ItemRegistry.EMERALD.id()) continue;
+                    if (trade.getItemCostB() != null) continue;
                     int inputStackSize = 64; // emeralds
-                    int baseCost = trade.getFirstInput().getAmount();
-                    int addnlDemandCost = Math.max(0, MathHelper.floorI((trade.getFirstInput().getAmount() * trade.getDemand() * trade.getPriceMultiplier())));
-                    int cost = MathHelper.clamp(baseCost + addnlDemandCost + trade.getSpecialPrice(), 1, inputStackSize);
+                    int baseCost = trade.getItemCostA().count();
+                    int addnlDemandCost = Math.max(0, MathHelper.floorI((trade.getItemCostA().count() * trade.getDemand() * trade.getPriceMultiplier())));
+                    int cost = MathHelper.clamp(baseCost + addnlDemandCost + trade.getSpecialPriceDiff(), 1, inputStackSize);
                     if (cost > PLUGIN_CONFIG.maxSpendPerTrade) continue;
-                    int availableTradeCount = trade.getMaxUses() - trade.getNumUses(); // each shift click can consume many trades
+                    int availableTradeCount = trade.getMaxUses() - trade.getUses(); // each shift click can consume many trades
                     int maxTradesPerInputStack = inputStackSize / cost;
-                    int outputsStackSize = ItemRegistry.REGISTRY.get(trade.getOutput().getId()).stackSize();
-                    int maxTradesPerOutputStack = outputsStackSize / trade.getOutput().getAmount();
+                    int outputsStackSize = ItemRegistry.REGISTRY.get(trade.getResult().getId()).stackSize();
+                    int maxTradesPerOutputStack = outputsStackSize / trade.getResult().getAmount();
                     int maxTradesPerShiftClick = Math.min(maxTradesPerInputStack, maxTradesPerOutputStack);
 
                     for (int j = 0; j < availableTradeCount; j+= maxTradesPerShiftClick) {

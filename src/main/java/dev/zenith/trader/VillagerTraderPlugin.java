@@ -13,7 +13,7 @@ import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
     description = "ZenithProxy Villager Trader",
     url = "https://github.com/rfresh2/ZenithProxyVillagerTrader",
     authors = {"rfresh2"},
-    mcVersions = {"1.21.0", "1.21.4", "1.21.5"}
+    mcVersions = {"1.21.8"}
 )
 public class VillagerTraderPlugin implements ZenithProxyPlugin {
     public static ComponentLogger LOG;
