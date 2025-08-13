@@ -21,6 +21,7 @@ import com.zenith.util.RequestFuture;
 import com.zenith.util.math.MathHelper;
 import com.zenith.util.timer.Timer;
 import com.zenith.util.timer.Timers;
+import dev.zenith.trader.EnchantmentUtil;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import org.geysermc.mcprotocollib.protocol.data.ProtocolState;
@@ -28,10 +29,12 @@ import org.geysermc.mcprotocollib.protocol.data.game.entity.metadata.MetadataTyp
 import org.geysermc.mcprotocollib.protocol.data.game.entity.metadata.VillagerData;
 import org.geysermc.mcprotocollib.protocol.data.game.entity.type.EntityType;
 import org.geysermc.mcprotocollib.protocol.data.game.inventory.ShiftClickItemAction;
+import org.geysermc.mcprotocollib.protocol.data.game.item.ItemStack;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.inventory.ClientboundMerchantOffersPacket;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static com.github.rfresh2.EventConsumer.of;
@@ -240,6 +243,9 @@ public class VillagerTrader extends Module {
                     if (!buyItemIds.contains(trade.getOutput().getId())) continue;
                     if (trade.getFirstInput().getId() != ItemRegistry.EMERALD.id()) continue;
                     if (trade.getSecondInput() != null) continue;
+
+                    if (!matchesDesiredEnchantments(trade.getOutput())) continue;
+
                     int inputStackSize = 64; // emeralds
                     int baseCost = trade.getFirstInput().getAmount();
                     int addnlDemandCost = Math.max(0, MathHelper.floorI((trade.getFirstInput().getAmount() * trade.getDemand() * trade.getPriceMultiplier())));
@@ -341,6 +347,43 @@ public class VillagerTrader extends Module {
             }
         }
         return buyItemIds;
+    }
+
+    private boolean matchesDesiredEnchantments(ItemStack itemStack) {
+        if (!EnchantmentUtil.isEnchantedBook(itemStack)) {
+            return false;
+        }
+
+        Map<String, Integer> bookEnchantments = EnchantmentUtil.getEnchantmentMap(itemStack);
+
+        // Check max level requirement
+        if (PLUGIN_CONFIG.onlyBuyMaxLevelEnchantments) {
+            for (Map.Entry<String, Integer> entry : bookEnchantments.entrySet()) {
+                String enchantment = entry.getKey();
+                int actualLevel = entry.getValue();
+                Integer maxLevel = EnchantmentUtil.MAX_LEVEL_MAP.get(enchantment);
+                if (maxLevel != null && actualLevel < maxLevel) {
+                    return false;
+                }
+            }
+        }
+
+        // Check desired enchantments requirement
+        if (!PLUGIN_CONFIG.onlyBuyDesiredEnchantments || PLUGIN_CONFIG.desiredEnchantments.isEmpty()) {
+            return true;
+        }
+
+        for (Map.Entry<String, Integer> desiredEntry : PLUGIN_CONFIG.desiredEnchantments.entrySet()) {
+            String desiredEnchant = desiredEntry.getKey();
+            int desiredLevel = desiredEntry.getValue();
+
+            Integer actualLevel = bookEnchantments.get(desiredEnchant);
+            if (actualLevel == null || actualLevel < desiredLevel) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private void stop() {

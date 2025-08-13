@@ -6,9 +6,11 @@ import com.zenith.command.api.CommandCategory;
 import com.zenith.command.api.CommandContext;
 import com.zenith.command.api.CommandUsage;
 import com.zenith.discord.Embed;
+import dev.zenith.trader.EnchantmentUtil;
 import dev.zenith.trader.module.VillagerTrader;
 
 import java.util.Arrays;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -42,6 +44,9 @@ public class VillagerTraderCommand extends Command {
               `maxSpendPerTrade` -> max emeralds to spend per trade
               `buyItemStoreStacksThreshold` -> how many stacks/slots of items to buy before it stores them
               `waitForInteractTimeout` -> timeout for server interactions like opening villager trade window
+              `desiredEnchantments` -> specific enchantments to buy on enchanted books
+              `onlyBuyDesiredEnchantments` -> whether to only buy enchanted books with desired enchantments
+              `onlyBuyMaxLevelEnchantments` -> whether to only buy enchanted books at maximum levels
               """)
             .usageLines(
                 "on/off",
@@ -56,7 +61,14 @@ public class VillagerTraderCommand extends Command {
                 "villagerTradeRestockWait <seconds>",
                 "maxSpendPerTrade <amount>",
                 "buyItemStoreStacksThreshold <stacks>",
-                "waitForInteractTimeout <ticks>"
+                "waitForInteractTimeout <ticks>",
+                "desiredEnchantments add <enchantment> <level>",
+                "desiredEnchantments del <enchantment>",
+                "desiredEnchantments clear",
+                "desiredEnchantments list",
+                "desiredEnchantments available",
+                "onlyBuyDesiredEnchantments <true/false>",
+                "onlyBuyMaxLevelEnchantments <true/false>"
             )
             .build();
     }
@@ -174,15 +186,143 @@ public class VillagerTraderCommand extends Command {
                 c.getSource().getEmbed()
                     .title("Buy Item Store Stacks Threshold Set");
             })))
-            .then(literal("waitForInteractTimeout").then(argument("ticks", integer(1, 1000)).executes(c -> {;
+            .then(literal("waitForInteractTimeout").then(argument("ticks", integer(1, 1000)).executes(c -> {
                 PLUGIN_CONFIG.waitForInteractTimeoutTicks = getInteger(c, "ticks");
                 c.getSource().getEmbed()
                     .title("Wait For Interact Timeout Set");
+            })))
+            .then(literal("desiredEnchantments")
+                .then(literal("add").then(argument("enchantment", enumStrings(EnchantmentUtil.MAX_LEVEL_MAP.keySet().toArray(new String[0]))).then(argument("level", integer(1, 5)).executes(c -> {
+                    String enchantment = getString(c, "enchantment");
+                    int level = getInteger(c, "level");
+                    Integer maxLevel = EnchantmentUtil.MAX_LEVEL_MAP.get(enchantment);
+                    if (maxLevel == null) {
+                        c.getSource().getEmbed()
+                            .title("Invalid Enchantment")
+                            .description("Enchantment not found: " + enchantment);
+                        return ERROR;
+                    }
+                    if (level < 1 || level > maxLevel) {
+                        c.getSource().getEmbed()
+                            .title("Invalid Level")
+                            .description("Level must be between 1 and " + maxLevel + " for " + enchantment);
+                        return ERROR;
+                    }
+                    PLUGIN_CONFIG.desiredEnchantments.put(enchantment, level);
+                    c.getSource().getEmbed()
+                        .title("Enchantment Added")
+                        .description("Added " + enchantment + " level " + level);
+                    return OK;
+                }))))
+                .then(literal("del").then(argument("enchantment", enumStrings(EnchantmentUtil.MAX_LEVEL_MAP.keySet().toArray(new String[0]))).executes(c -> {
+                    String enchantment = getString(c, "enchantment");
+                    Integer removed = PLUGIN_CONFIG.desiredEnchantments.remove(enchantment);
+                    if (removed == null) {
+                        c.getSource().getEmbed()
+                            .title("Enchantment Not Found")
+                            .description("Enchantment not in desired list: " + enchantment);
+                        return ERROR;
+                    }
+                    c.getSource().getEmbed()
+                        .title("Enchantment Removed")
+                        .description("Removed " + enchantment + " level " + removed);
+                    return OK;
+                })))
+                .then(literal("clear").executes(c -> {
+                    int count = PLUGIN_CONFIG.desiredEnchantments.size();
+                    PLUGIN_CONFIG.desiredEnchantments.clear();
+                    c.getSource().getEmbed()
+                        .title("Enchantments Cleared")
+                        .description("Cleared " + count + " enchantments");
+                    return OK;
+                })))
+                .then(literal("list").executes(c -> {
+                    if (PLUGIN_CONFIG.desiredEnchantments.isEmpty()) {
+                        c.getSource().getEmbed()
+                            .title("Configured Enchantments")
+                            .description("No enchantments configured. Use `desiredEnchantments add <enchantment> <level>` to add enchantments.");
+                        return OK;
+                    }
+
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("Currently configured enchantments:\n\n");
+
+                    // Group by level for better readability
+                    Map<Integer, java.util.List<String>> enchantmentsByLevel = new java.util.TreeMap<>();
+
+                    for (Map.Entry<String, Integer> entry : PLUGIN_CONFIG.desiredEnchantments.entrySet()) {
+                        String enchantment = entry.getKey();
+                        int level = entry.getValue();
+
+                        enchantmentsByLevel.computeIfAbsent(level, k -> new java.util.ArrayList<>())
+                            .add(enchantment);
+                    }
+
+                    for (Map.Entry<Integer, java.util.List<String>> entry : enchantmentsByLevel.entrySet()) {
+                        int level = entry.getKey();
+                        java.util.List<String> enchantments = entry.getValue();
+                        enchantments.sort(String.CASE_INSENSITIVE_ORDER);
+
+                        sb.append("**Level ").append(level).append("**: ")
+                          .append(String.join(", ", enchantments))
+                          .append("\n");
+                    }
+
+                    c.getSource().getEmbed()
+                        .title("Configured Enchantments")
+                        .description(sb.toString());
+                    return OK;
+                }))
+                .then(literal("available").executes(c -> {
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("Available enchantments and their maximum levels:\n\n");
+
+                    // Group enchantments by level for better readability
+                    Map<Integer, java.util.List<String>> enchantmentsByLevel = new java.util.TreeMap<>();
+
+                    for (Map.Entry<String, Integer> entry : EnchantmentUtil.MAX_LEVEL_MAP.entrySet()) {
+                        String enchantment = entry.getKey();
+                        int maxLevel = entry.getValue();
+
+                        enchantmentsByLevel.computeIfAbsent(maxLevel, k -> new java.util.ArrayList<>())
+                            .add(enchantment);
+                    }
+
+                    for (Map.Entry<Integer, java.util.List<String>> entry : enchantmentsByLevel.entrySet()) {
+                        int level = entry.getKey();
+                        java.util.List<String> enchantments = entry.getValue();
+                        enchantments.sort(String.CASE_INSENSITIVE_ORDER);
+
+                        sb.append("**Level ").append(level).append("**: ")
+                          .append(String.join(", ", enchantments))
+                          .append("\n");
+                    }
+
+                    c.getSource().getEmbed()
+                        .title("Available Enchantments")
+                        .description(sb.toString());
+                    return OK;
+                }))
+            .then(literal("onlyBuyDesiredEnchantments").then(argument("toggle", toggle()).executes(c -> {
+                PLUGIN_CONFIG.onlyBuyDesiredEnchantments = getToggle(c, "toggle");
+                c.getSource().getEmbed()
+                    .title("Only Buy Desired Enchantments " + (PLUGIN_CONFIG.onlyBuyDesiredEnchantments ? "Enabled" : "Disabled"));
+                return OK;
+            })))
+            .then(literal("onlyBuyMaxLevelEnchantments").then(argument("toggle", toggle()).executes(c -> {
+                PLUGIN_CONFIG.onlyBuyMaxLevelEnchantments = getToggle(c, "toggle");
+                c.getSource().getEmbed()
+                    .title("Only Buy Max Level Enchantments " + (PLUGIN_CONFIG.onlyBuyMaxLevelEnchantments ? "Enabled" : "Disabled"));
+                return OK;
             })));
     }
 
     @Override
     public void defaultEmbed(Embed embed) {
+        String enchantmentsStr = PLUGIN_CONFIG.desiredEnchantments.entrySet().stream()
+            .map(e -> e.getKey() + ":" + e.getValue())
+            .collect(Collectors.joining(", ", "[", "]"));
+
         embed
             .addField("Villager Trader", toggleStr(PLUGIN_CONFIG.enabled))
             .addField("Professions", PLUGIN_CONFIG.villagerProfessions.stream().map(p -> p.name().toLowerCase()).collect(Collectors.joining(", ", "[", "]")))
@@ -195,6 +335,9 @@ public class VillagerTraderCommand extends Command {
             .addField("Max Spend Per Trade", PLUGIN_CONFIG.maxSpendPerTrade)
             .addField("Buy Item Store Stacks Threshold", PLUGIN_CONFIG.buyItemStoreStacksThreshold + " stacks")
             .addField("Wait For Interact Timeout", PLUGIN_CONFIG.waitForInteractTimeoutTicks + " ticks")
+            .addField("Desired Enchantments", PLUGIN_CONFIG.desiredEnchantments.isEmpty() ? "[None]" : enchantmentsStr)
+            .addField("Only Buy Desired Enchantments", toggleStr(PLUGIN_CONFIG.onlyBuyDesiredEnchantments))
+            .addField("Only Buy Max Level Enchantments", toggleStr(PLUGIN_CONFIG.onlyBuyMaxLevelEnchantments))
             .primaryColor();
     }
 }
