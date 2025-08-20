@@ -166,6 +166,11 @@ public class VillagerTraderCommand extends Command {
                 c.getSource().getEmbed()
                     .title("Restock Chest Set");
             })))
+            .then(literal("restockChestBooks").then(argument("pos", blockPos()).executes(c -> {
+                PLUGIN_CONFIG.restockChestBooks = getBlockPos(c, "pos");
+                c.getSource().getEmbed()
+                        .title("Restock Chest Books Set");
+            })))
             .then(literal("storeChest").then(argument("pos", blockPos()).executes(c -> {
                 PLUGIN_CONFIG.storeChest = getBlockPos(c, "pos");
                 c.getSource().getEmbed()
@@ -330,6 +335,7 @@ public class VillagerTraderCommand extends Command {
             .addField("Restock Stacks", PLUGIN_CONFIG.restockStacks)
             .addField("Restock Emerald Count Threshold", PLUGIN_CONFIG.restockEmeraldCountThreshold)
             .addField("Restock Chest", "||" + (CONFIG.discord.reportCoords ? PLUGIN_CONFIG.restockChest : "Coords disabled") + "||")
+            .addField("Restock Chest Books", "||" + (CONFIG.discord.reportCoords ? PLUGIN_CONFIG.restockChestBooks : "Coords disabled") + "||")
             .addField("Store Chest", "||" + (CONFIG.discord.reportCoords ? PLUGIN_CONFIG.storeChest : "Coords disabled") + "||")
             .addField("Villager Trade Restock Wait", PLUGIN_CONFIG.villagerTradeRestockWaitSeconds + "s")
             .addField("Max Spend Per Trade", PLUGIN_CONFIG.maxSpendPerTrade)

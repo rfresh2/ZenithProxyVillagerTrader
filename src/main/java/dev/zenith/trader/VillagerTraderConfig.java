@@ -17,6 +17,7 @@ public class VillagerTraderConfig {
     public int restockStacks = 2;
     public int restockEmeraldCountThreshold = 64;
     public BlockPos restockChest = BlockPos.ZERO;
+    public BlockPos restockChestBooks = BlockPos.ZERO;
     public BlockPos storeChest = BlockPos.ZERO;
     public int buyItemStoreStacksThreshold = 10;
     public int villagerTradeRestockWaitSeconds = 60;

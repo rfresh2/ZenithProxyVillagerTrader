@@ -9,9 +9,7 @@ import it.unimi.dsi.fastutil.ints.Int2IntArrayMap;
 import it.unimi.dsi.fastutil.ints.Int2IntMap;
 import org.geysermc.mcprotocollib.protocol.data.game.item.ItemStack;
 import org.geysermc.mcprotocollib.protocol.data.game.item.component.DataComponentTypes;
-import org.geysermc.mcprotocollib.protocol.data.game.item.component.DataComponents;
 import org.geysermc.mcprotocollib.protocol.data.game.item.component.ItemEnchantments;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -49,13 +47,11 @@ public class EnchantmentUtil {
     }
 
     public static boolean isMaxLevel(String name, int level) {
-
         return MAX_LEVEL_MAP.get(name) == level;
     }
 
-    public static int getMaxLevel(String name) {
-
-        return MAX_LEVEL_MAP.get(name);
+    public static Optional<Integer> getMaxLevel(String name) {
+        return Optional.ofNullable(MAX_LEVEL_MAP.get(name));
     }
 
     public static Map<String, Integer> getEnchantmentMap(ItemStack itemStack) {
