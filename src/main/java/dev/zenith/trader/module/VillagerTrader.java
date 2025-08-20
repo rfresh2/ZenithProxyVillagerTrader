@@ -43,7 +43,7 @@ import static dev.zenith.trader.VillagerTraderPlugin.PLUGIN_CONFIG;
 
 public class VillagerTrader extends Module {
     public static final int PRIORITY = 9000;
-    private State state = State.RESTOCK;
+    private State state = State.START;
     private final Cache<Integer, Boolean> interactedVillagersCache = CacheBuilder.newBuilder()
         .build();
     private PathingRequestFuture interactWithVillagerFuture = PathingRequestFuture.rejected;
@@ -73,7 +73,7 @@ public class VillagerTrader extends Module {
     }
 
     private void reset() {
-        state = State.RESTOCK;
+        state = State.START;
         interactedVillagersCache.invalidateAll();
         offersPacket = null;
     }
@@ -127,7 +127,7 @@ public class VillagerTrader extends Module {
                 if (nextVillagerOptional.isEmpty()) {
                     if (interactedVillagersCache.asMap().isEmpty()) {
                         warn("No villagers found to trade with, going back to restock chest");
-                        setState(State.RESTOCK);
+                        setState(State.START);
                     } else {
                         if (countBuyItem() > 0) {
                             setState(State.STORE_GO_TO_CHEST);
@@ -172,9 +172,7 @@ public class VillagerTrader extends Module {
                     var trade = trades[i];
                     if (trade.isTradeDisabled()) continue;
                     if (trade.getOutput() == null) continue;
-                    System.out.println("Trade output: " + trade.getOutput());
                     if (!buyItemIds.contains(trade.getOutput().getId())) continue;
-
 
                     if (!isEBookTrade(trade)) {
                         if (trade.getFirstInput().getId() != ItemRegistry.EMERALD.id()) continue;
@@ -212,7 +210,7 @@ public class VillagerTrader extends Module {
                     if (countBuyItemSlotUsages() > PLUGIN_CONFIG.buyItemStoreStacksThreshold) {
                         setState(State.STORE_GO_TO_CHEST);
                     } else if (needsRestock()) {
-                        setState(State.RESTOCK);
+                        setState(State.START);
                     } else {
                         setState(State.TRADING_INTERACT_WITH_VILLAGER);
                     }
@@ -255,17 +253,17 @@ public class VillagerTrader extends Module {
                     if (buyItemCount > 0) {
                         if (waitForInteractTimer.tick(PLUGIN_CONFIG.waitForInteractTimeoutTicks)) {
                             warn("Unable to fully deposit buy items, trying to continue anyway");
-                            setState(State.RESTOCK);
+                            setState(State.START);
                         }
                         return;
                     }
-                    setState(State.RESTOCK);
+                    setState(State.START);
                 }
             }
             case WAITING_FOR_VILLAGER_TRADE_RESTOCK -> {
                 if (waitForRestockTimer.tick(20L * PLUGIN_CONFIG.villagerTradeRestockWaitSeconds)) {
                     interactedVillagersCache.invalidateAll();
-                    setState(State.RESTOCK);
+                    setState(State.START);
                 }
             }
         }
