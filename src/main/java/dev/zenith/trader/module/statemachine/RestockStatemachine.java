@@ -28,7 +28,7 @@ import static dev.zenith.trader.module.VillagerTrader.PRIORITY;
  * @since 20.08.2025
  */
 public class RestockStatemachine implements IStatemachine {
-    RestockStates state = RestockStates.GO_TO_CHEST_EMERALDS;
+    RestockStates state = RestockStates.START;
     private PathingRequestFuture restockPathingFuture = PathingRequestFuture.rejected;
     private RequestFuture restockWithdrawFuture = RequestFuture.rejected;
     private RequestFuture emeraldBlockCraftFuture = RequestFuture.rejected;
@@ -44,7 +44,7 @@ public class RestockStatemachine implements IStatemachine {
 
     @Override
     public void reset() {
-        this.state = RestockStates.GO_TO_CHEST_EMERALDS;
+        this.state = RestockStates.START;
         this.restockPathingFuture = PathingRequestFuture.rejected;
         this.restockWithdrawFuture = RequestFuture.rejected;
         this.emeraldBlockCraftFuture = RequestFuture.rejected;
@@ -58,6 +58,7 @@ public class RestockStatemachine implements IStatemachine {
                 } else if (needsCashMoney()) {
                     switchState(RestockStates.GO_TO_CHEST_EMERALDS);
                 } else {
+                    owner.info("Restocking completed, we have enough to trade");
                     switchState(RestockStates.SUCCESS);
                 }
             }
@@ -214,6 +215,10 @@ public class RestockStatemachine implements IStatemachine {
     private void switchState(RestockStates newState) {
         this.state = newState;
         // Additional logic for state transition can be added here
+    }
+
+    public boolean needsRestock() {
+        return needsCashMoney() || needsBooks();
     }
 
     private boolean needsCashMoney() {

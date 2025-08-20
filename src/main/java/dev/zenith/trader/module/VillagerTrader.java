@@ -96,9 +96,7 @@ public class VillagerTrader extends Module {
     private void onTick(ClientBotTick event) {
         switch (state) {
             case START -> {
-                int emeraldCount = ItemUtil.countItem(ItemRegistry.EMERALD.id());
-                int emeraldBlockCount = ItemUtil.countItem(ItemRegistry.EMERALD_BLOCK.id());
-                if (emeraldCount + (emeraldBlockCount * 9) < PLUGIN_CONFIG.restockEmeraldCountThreshold || emeraldBlockCount > 0) {
+                if (restockStateMachine.needsRestock()) {
                     restockStateMachine.restock();
                     setState(State.RESTOCK);
                 } else {
@@ -190,7 +188,7 @@ public class VillagerTrader extends Module {
                     int addnlDemandCost = Math.max(0, MathHelper.floorI((trade.getFirstInput().getAmount() * trade.getDemand() * trade.getPriceMultiplier())));
                     int cost = MathHelper.clamp(baseCost + addnlDemandCost + trade.getSpecialPrice(), 1, inputStackSize);
                     if (cost > PLUGIN_CONFIG.maxSpendPerTrade) continue;
-                    int availableTradeCount = Math.min(trade.getMaxUses(), 20) - trade.getNumUses(); // each shift click can consume many trades
+                    int availableTradeCount = Math.min(trade.getMaxUses() - trade.getNumUses(), 20); // each shift click can consume many trades lets keep this within sane limits
                     int maxTradesPerInputStack = inputStackSize / cost;
                     int outputsStackSize = ItemRegistry.REGISTRY.get(trade.getOutput().getId()).stackSize();
                     int maxTradesPerOutputStack = outputsStackSize / trade.getOutput().getAmount();
@@ -213,7 +211,7 @@ public class VillagerTrader extends Module {
                 if (purchaseFuture.isCompleted()) {
                     if (countBuyItemSlotUsages() > PLUGIN_CONFIG.buyItemStoreStacksThreshold) {
                         setState(State.STORE_GO_TO_CHEST);
-                    } else if (ItemUtil.countItem(ItemRegistry.EMERALD.id()) < PLUGIN_CONFIG.restockEmeraldCountThreshold) {
+                    } else if (needsRestock()) {
                         setState(State.RESTOCK);
                     } else {
                         setState(State.TRADING_INTERACT_WITH_VILLAGER);
@@ -271,6 +269,10 @@ public class VillagerTrader extends Module {
                 }
             }
         }
+    }
+
+    private boolean needsRestock() {
+        return this.restockStateMachine.needsRestock();
     }
 
     private boolean isEBookTrade(VillagerTrade trade) {
