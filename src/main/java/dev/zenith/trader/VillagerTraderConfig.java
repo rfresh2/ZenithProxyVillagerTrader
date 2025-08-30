@@ -5,7 +5,7 @@ import com.zenith.mc.block.BlockPos;
 import com.zenith.mc.item.ItemRegistry;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import static dev.zenith.trader.module.VillagerTrader.VillagerProfession;
@@ -22,7 +22,7 @@ public class VillagerTraderConfig {
     public int villagerTradeRestockWaitSeconds = 60;
     public int maxSpendPerTrade = 99;
     public long waitForInteractTimeoutTicks = 20L;
-    public Map<String, Integer> desiredEnchantments = new HashMap<>();
+    public Map<String, Integer> desiredEnchantments = new LinkedHashMap<>();
     public boolean onlyBuyDesiredEnchantments = true;
-    public boolean onlyBuyMaxLevelEnchantments = false;
+    public boolean onlyBuyMaxLevelEnchantments = true;
 }
