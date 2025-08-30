@@ -352,7 +352,7 @@ public class VillagerTrader extends Module {
 
     private boolean matchesDesiredEnchantments(ItemStack itemStack) {
         if (!EnchantmentUtil.isEnchantedBook(itemStack)) {
-            return false;
+            return true;
         }
 
         Map<String, Integer> bookEnchantments = EnchantmentUtil.getEnchantmentMap(itemStack);
