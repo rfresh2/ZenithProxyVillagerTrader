@@ -54,6 +54,8 @@ public class VillagerTrader extends Module {
     private RequestFuture purchaseFuture = RequestFuture.rejected;
     private PathingRequestFuture storePathingFuture = PathingRequestFuture.rejected;
     private RequestFuture storeDepositFuture = RequestFuture.rejected;
+    private RequestFuture bookRestockPathingFuture = RequestFuture.rejected;
+    private RequestFuture bookRestockWithdrawFuture = RequestFuture.rejected;
     private final Timer waitForRestockTimer = Timers.tickTimer();
     private final Timer waitForInteractTimer = Timers.tickTimer();
 
@@ -78,6 +80,8 @@ public class VillagerTrader extends Module {
         state = State.RESTOCK_GO_TO_CHEST;
         interactedVillagersCache.invalidateAll();
         offersPacket = null;
+        bookRestockPathingFuture = RequestFuture.rejected;
+        bookRestockWithdrawFuture = RequestFuture.rejected;
     }
 
     public PacketHandlerCodec registerClientPacketHandlerCodec() {
@@ -240,23 +244,40 @@ public class VillagerTrader extends Module {
                     var trade = trades[i];
                     if (trade.isTradeDisabled()) continue;
                     if (trade.getOutput() == null) continue;
-                    if (!buyItemIds.contains(trade.getOutput().getId())) continue;
+                    if (!buyItemIds.contains(trade.getOutput().getId())) {
+                        if (!PLUGIN_CONFIG.buyEnchantBook || !EnchantmentUtil.isEnchantedBook(trade.getOutput())) {
+                            continue;
+                        }
+
+                    }
+                    // Only buy trades that cost emeralds
                     if (trade.getFirstInput().getId() != ItemRegistry.EMERALD.id()) continue;
-                    if (trade.getSecondInput() != null) continue;
 
                     if (!matchesDesiredEnchantments(trade.getOutput())) continue;
+
+                    // Check if we need to restock books
+                    if (EnchantmentUtil.isEnchantedBook(trade.getOutput()) && shouldRestockBooks()) {
+                        setState(State.BOOK_RESTOCK_GO_TO_CHEST);
+                        return;
+                    }
 
                     int inputStackSize = 64; // emeralds
                     int baseCost = trade.getFirstInput().getAmount();
                     int addnlDemandCost = Math.max(0, MathHelper.floorI((trade.getFirstInput().getAmount() * trade.getDemand() * trade.getPriceMultiplier())));
                     int cost = MathHelper.clamp(baseCost + addnlDemandCost + trade.getSpecialPrice(), 1, inputStackSize);
-                    if (cost > PLUGIN_CONFIG.maxSpendPerTrade) continue;
+
+                    // Get item-specific max spend or fall back to global max spend
+                    String outputItemName = ItemRegistry.REGISTRY.get(trade.getOutput().getId()).name();
+                    int maxSpendForItem = PLUGIN_CONFIG.itemMaxSpendPerTrade.getOrDefault(outputItemName, PLUGIN_CONFIG.maxSpendPerTrade);
+                    if (cost > maxSpendForItem) continue;
                     int availableTradeCount = trade.getMaxUses() - trade.getNumUses() - 1; // each shift click can consume many trades
                     if (availableTradeCount <= 0) continue;
                     int maxTradesPerInputStack = inputStackSize / cost;
                     int outputsStackSize = ItemRegistry.REGISTRY.get(trade.getOutput().getId()).stackSize();
                     int maxTradesPerOutputStack = outputsStackSize / trade.getOutput().getAmount();
                     int maxTradesPerShiftClick = Math.min(maxTradesPerInputStack, maxTradesPerOutputStack);
+
+                    info("Buy item: {}, Cost: {} emeralds, Available trades: {}", outputItemName, cost, availableTradeCount);
 
                     for (int j = 0; j < availableTradeCount; j+= maxTradesPerShiftClick) {
                         actions.add(new SelectTrade(offersPacket.getContainerId(), i));
@@ -332,6 +353,40 @@ public class VillagerTrader extends Module {
                     setState(State.RESTOCK_GO_TO_CHEST);
                 }
             }
+            case BOOK_RESTOCK_GO_TO_CHEST -> {
+                var bookRestockChest = PLUGIN_CONFIG.bookRestockChest;
+                bookRestockPathingFuture = BARITONE.rightClickBlock(bookRestockChest.x(), bookRestockChest.y(), bookRestockChest.z());
+                waitForInteractTimer.reset();
+                setState(State.BOOK_RESTOCK_PATHING_TO_CHEST);
+            }
+            case BOOK_RESTOCK_PATHING_TO_CHEST -> {
+                if (bookRestockPathingFuture.isCompleted()) {
+                    var openContainer = CACHE.getPlayerCache().getInventoryCache().getOpenContainer();
+                    if (openContainer.getContainerId() != 0) {
+                        var actions = Lists.newArrayList(
+                                InventoryActionMacros.withdraw(
+                                        openContainer.getContainerId(),
+                                        i -> i.getId() == ItemRegistry.BOOK.id(),
+                                        PLUGIN_CONFIG.bookRestockStacksThreshold));
+                        actions.add(new CloseContainer(openContainer.getContainerId()));
+                        bookRestockWithdrawFuture = INVENTORY.submit(InventoryActionRequest.builder()
+                                .owner(this)
+                                .actions(actions)
+                                .priority(PRIORITY)
+                                .build());
+                        setState(State.BOOK_RESTOCK_WITHDRAWING_FROM_CHEST);
+                    } else {
+                        if (waitForInteractTimer.tick(PLUGIN_CONFIG.waitForInteractTimeoutTicks)) {
+                            setState(State.BOOK_RESTOCK_GO_TO_CHEST);
+                        }
+                    }
+                }
+            }
+            case BOOK_RESTOCK_WITHDRAWING_FROM_CHEST -> {
+                if (bookRestockWithdrawFuture.isCompleted()) {
+                    setState(State.TRADING_INTERACT_WITH_VILLAGER);
+                }
+            }
         }
     }
 
@@ -356,31 +411,41 @@ public class VillagerTrader extends Module {
         }
 
         Map<String, Integer> bookEnchantments = EnchantmentUtil.getEnchantmentMap(itemStack);
+        if (bookEnchantments.size() != 1) {
+            return false;
+        }
+        String enchantment = "";
+        int actualLevel = 0;
+        Integer maxLevel = 0;
 
+        for (Map.Entry<String, Integer> entry : bookEnchantments.entrySet()) {
+            enchantment = entry.getKey();
+            actualLevel = entry.getValue();
+            maxLevel = EnchantmentUtil.getMaxLevel(enchantment);
+        }
         // Check max level requirement
         if (PLUGIN_CONFIG.onlyBuyMaxLevelEnchantments) {
-            for (Map.Entry<String, Integer> entry : bookEnchantments.entrySet()) {
-                String enchantment = entry.getKey();
-                int actualLevel = entry.getValue();
-                Integer maxLevel = EnchantmentUtil.MAX_LEVEL_MAP.get(enchantment);
                 if (maxLevel != null && actualLevel < maxLevel) {
                     return false;
                 }
             }
-        }
 
         // Check desired enchantments requirement
         if (!PLUGIN_CONFIG.onlyBuyDesiredEnchantments || PLUGIN_CONFIG.desiredEnchantments.isEmpty()) {
             return true;
         }
 
-        for (Map.Entry<String, Integer> desiredEntry : PLUGIN_CONFIG.desiredEnchantments.entrySet()) {
-            String desiredEnchant = desiredEntry.getKey();
-            int desiredLevel = desiredEntry.getValue();
+        // Additional check: if book has enchantments not in desired list, reject it
+        if (PLUGIN_CONFIG.onlyBuyDesiredEnchantments) {
 
-            Integer actualLevel = bookEnchantments.get(desiredEnchant);
-            if (actualLevel == null || actualLevel < desiredLevel) {
+            Integer desiredLevel = PLUGIN_CONFIG.desiredEnchantments.get(enchantment);
+            if (desiredLevel == null) {
+                //no need
                 return false;
+            }
+            if (actualLevel < desiredLevel) {
+                //等级不够
+                return false; // Missing desired enchantment or level too low
             }
         }
 
@@ -468,6 +533,14 @@ public class VillagerTrader extends Module {
         return count;
     }
 
+    private boolean shouldRestockBooks() {
+        if (!PLUGIN_CONFIG.buyEnchantBook) {
+            return false;
+        }
+        int bookCount = countItem(ItemRegistry.BOOK.id());
+        return bookCount < PLUGIN_CONFIG.bookRestockStacksThreshold;
+    }
+
     public enum State {
         RESTOCK_GO_TO_CHEST,
         RESTOCK_PATHING_TO_CHEST,
@@ -481,7 +554,10 @@ public class VillagerTrader extends Module {
         STORE_GO_TO_CHEST,
         STORE_DEPOSIT,
         STORE_AWAIT_DEPOSIT,
-        WAITING_FOR_VILLAGER_TRADE_RESTOCK
+        WAITING_FOR_VILLAGER_TRADE_RESTOCK,
+        BOOK_RESTOCK_GO_TO_CHEST,
+        BOOK_RESTOCK_PATHING_TO_CHEST,
+        BOOK_RESTOCK_WITHDRAWING_FROM_CHEST
     }
 
     public enum VillagerProfession {

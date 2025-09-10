@@ -19,10 +19,14 @@ public class VillagerTraderConfig {
     public BlockPos restockChest = BlockPos.ZERO;
     public BlockPos storeChest = BlockPos.ZERO;
     public int buyItemStoreStacksThreshold = 10;
+    public BlockPos bookRestockChest = BlockPos.ZERO;
+    public int bookRestockStacksThreshold = 30;
     public int villagerTradeRestockWaitSeconds = 60;
     public int maxSpendPerTrade = 99;
+    public Map<String, Integer> itemMaxSpendPerTrade = new LinkedHashMap<>();
     public long waitForInteractTimeoutTicks = 20L;
-    public Map<String, Integer> desiredEnchantments = new LinkedHashMap<>();
+    public boolean buyEnchantBook = true;
     public boolean onlyBuyDesiredEnchantments = true;
     public boolean onlyBuyMaxLevelEnchantments = true;
+    public Map<String, Integer> desiredEnchantments = new LinkedHashMap<>();
 }

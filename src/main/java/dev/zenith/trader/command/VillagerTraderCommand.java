@@ -9,8 +9,7 @@ import com.zenith.discord.Embed;
 import dev.zenith.trader.EnchantmentUtil;
 import dev.zenith.trader.module.VillagerTrader;
 
-import java.util.Arrays;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -41,7 +40,8 @@ public class VillagerTraderCommand extends Command {
               
               `restockStacks` -> how many stacks of emeralds/emerald blocks to restock. Emerald blocks are crafted down to emeralds.
               `villagerTradeRestockWait` -> seconds it waits after all villagers are out of stock. 1200 = 1 minecraft day
-              `maxSpendPerTrade` -> max emeralds to spend per trade
+              `maxSpendPerTrade` -> max emeralds to spend per trade (global default)
+              `itemMaxSpend` -> set max emeralds to spend per trade for specific items (overrides global setting)
               `buyItemStoreStacksThreshold` -> how many stacks/slots of items to buy before it stores them
               `waitForInteractTimeout` -> timeout for server interactions like opening villager trade window
               `desiredEnchantments` -> specific enchantments to buy on enchanted books
@@ -58,8 +58,13 @@ public class VillagerTraderCommand extends Command {
                 "restockEmeraldCountThreshold <amount>",
                 "restockChest <x> <y> <z>",
                 "storeChest <x> <y> <z>",
+                        "bookRestockChest <x> <y> <z>",
                 "villagerTradeRestockWait <seconds>",
                 "maxSpendPerTrade <amount>",
+                        "itemMaxSpend set <item> <amount>",
+                        "itemMaxSpend del <item>",
+                        "itemMaxSpend clear",
+                        "itemMaxSpend list",
                 "buyItemStoreStacksThreshold <stacks>",
                 "waitForInteractTimeout <ticks>",
                 "desiredEnchantments add <enchantment> <level>",
@@ -170,6 +175,11 @@ public class VillagerTraderCommand extends Command {
                 PLUGIN_CONFIG.storeChest = getBlockPos(c, "pos");
                 c.getSource().getEmbed()
                     .title("Store Chest Set");
+                })))
+            .then(literal("bookRestockChest").then(argument("pos", blockPos()).executes(c -> {
+                PLUGIN_CONFIG.bookRestockChest = getBlockPos(c, "pos");
+                c.getSource().getEmbed()
+                            .title("Book Restock Chest Set");
             })))
             .then(literal("villagerTradeRestockWait").then(argument("seconds", integer(1, (int) TimeUnit.MINUTES.toSeconds(30))).executes(c -> {
                 PLUGIN_CONFIG.villagerTradeRestockWaitSeconds = getInteger(c, "seconds");
@@ -181,6 +191,59 @@ public class VillagerTraderCommand extends Command {
                 c.getSource().getEmbed()
                     .title("Max Spend Per Trade Set");
             })))
+                .then(literal("itemMaxSpend")
+                        .then(literal("set").then(argument("item", item()).then(argument("spend", integer(1, 1000)).executes(c -> {
+                            var itemData = getItem(c, "item");
+                            int spend = getInteger(c, "spend");
+                            PLUGIN_CONFIG.itemMaxSpendPerTrade.put(itemData.name(), spend);
+                            c.getSource().getEmbed()
+                                    .title("Item Max Spend Set")
+                                    .description("Set max spend for " + itemData.name() + " to " + spend);
+                            return OK;
+                        }))))
+                        .then(literal("del").then(argument("item", item()).executes(c -> {
+                            var itemData = getItem(c, "item");
+                            Integer removed = PLUGIN_CONFIG.itemMaxSpendPerTrade.remove(itemData.name());
+                            if (removed == null) {
+                                c.getSource().getEmbed()
+                                        .title("Item Max Spend Not Found")
+                                        .description("No max spend configured for: " + itemData.name());
+                                return ERROR;
+                            }
+                            c.getSource().getEmbed()
+                                    .title("Item Max Spend Removed")
+                                    .description("Removed max spend for " + itemData.name());
+                            return OK;
+                        })))
+                        .then(literal("clear").executes(c -> {
+                            int count = PLUGIN_CONFIG.itemMaxSpendPerTrade.size();
+                            PLUGIN_CONFIG.itemMaxSpendPerTrade.clear();
+                            c.getSource().getEmbed()
+                                    .title("Item Max Spend Cleared")
+                                    .description("Cleared " + count + " item-specific max spend settings");
+                            return OK;
+                        }))
+                        .then(literal("list").executes(c -> {
+                            if (PLUGIN_CONFIG.itemMaxSpendPerTrade.isEmpty()) {
+                                c.getSource().getEmbed()
+                                        .title("Item Max Spend Settings")
+                                        .description("No item-specific max spend configured. Use `itemMaxSpend set <item> <amount>` to add settings.");
+                                return OK;
+                            }
+
+                            StringBuilder sb = new StringBuilder();
+                            sb.append("Currently configured item max spend settings:\n\n");
+
+                            for (Map.Entry<String, Integer> entry : PLUGIN_CONFIG.itemMaxSpendPerTrade.entrySet()) {
+                                sb.append("**").append(entry.getKey()).append("**: ")
+                                        .append(entry.getValue()).append(" emeralds\n");
+                            }
+
+                            c.getSource().getEmbed()
+                                    .title("Item Max Spend Settings")
+                                    .description(sb.toString());
+                            return OK;
+                        })))
             .then(literal("buyItemStoreStacksThreshold").then(argument("stackCount", integer(1, 36)).executes(c -> {
                 PLUGIN_CONFIG.buyItemStoreStacksThreshold = getInteger(c, "stackCount");
                 c.getSource().getEmbed()
@@ -192,10 +255,10 @@ public class VillagerTraderCommand extends Command {
                     .title("Wait For Interact Timeout Set");
             })))
             .then(literal("desiredEnchantments")
-                .then(literal("add").then(argument("enchantment", enumStrings(EnchantmentUtil.MAX_LEVEL_MAP.keySet().toArray(new String[0]))).then(argument("level", integer(1, 5)).executes(c -> {
+                .then(literal("add").then(argument("enchantment", enumStrings(EnchantmentUtil.getAllEnchantment().toArray(new String[0]))).then(argument("level", integer(1, 5)).executes(c -> {
                     String enchantment = getString(c, "enchantment");
                     int level = getInteger(c, "level");
-                    Integer maxLevel = EnchantmentUtil.MAX_LEVEL_MAP.get(enchantment);
+                            Integer maxLevel = EnchantmentUtil.getMaxLevel(enchantment);
                     if (maxLevel == null) {
                         c.getSource().getEmbed()
                             .title("Invalid Enchantment")
@@ -214,7 +277,7 @@ public class VillagerTraderCommand extends Command {
                         .description("Added " + enchantment + " level " + level);
                     return OK;
                 }))))
-                .then(literal("del").then(argument("enchantment", enumStrings(EnchantmentUtil.MAX_LEVEL_MAP.keySet().toArray(new String[0]))).executes(c -> {
+                .then(literal("del").then(argument("enchantment", enumStrings(EnchantmentUtil.getAllEnchantment().toArray(new String[0]))).executes(c -> {
                     String enchantment = getString(c, "enchantment");
                     Integer removed = PLUGIN_CONFIG.desiredEnchantments.remove(enchantment);
                     if (removed == null) {
@@ -248,7 +311,7 @@ public class VillagerTraderCommand extends Command {
                     sb.append("Currently configured enchantments:\n\n");
 
                     // Group by level for better readability
-                    Map<Integer, java.util.List<String>> enchantmentsByLevel = new java.util.TreeMap<>();
+                    Map<Integer, List<String>> enchantmentsByLevel = new TreeMap<>();
 
                     for (Map.Entry<String, Integer> entry : PLUGIN_CONFIG.desiredEnchantments.entrySet()) {
                         String enchantment = entry.getKey();
@@ -258,9 +321,9 @@ public class VillagerTraderCommand extends Command {
                             .add(enchantment);
                     }
 
-                    for (Map.Entry<Integer, java.util.List<String>> entry : enchantmentsByLevel.entrySet()) {
+                    for (Map.Entry<Integer, List<String>> entry : enchantmentsByLevel.entrySet()) {
                         int level = entry.getKey();
-                        java.util.List<String> enchantments = entry.getValue();
+                        List<String> enchantments = entry.getValue();
                         enchantments.sort(String.CASE_INSENSITIVE_ORDER);
 
                         sb.append("**Level ").append(level).append("**: ")
@@ -278,19 +341,19 @@ public class VillagerTraderCommand extends Command {
                     sb.append("Available enchantments and their maximum levels:\n\n");
 
                     // Group enchantments by level for better readability
-                    Map<Integer, java.util.List<String>> enchantmentsByLevel = new java.util.TreeMap<>();
+                    Map<Integer, List<String>> enchantmentsByLevel = new TreeMap<>();
 
-                    for (Map.Entry<String, Integer> entry : EnchantmentUtil.MAX_LEVEL_MAP.entrySet()) {
-                        String enchantment = entry.getKey();
-                        int maxLevel = entry.getValue();
-
-                        enchantmentsByLevel.computeIfAbsent(maxLevel, k -> new java.util.ArrayList<>())
+                    for (String enchantment : EnchantmentUtil.getAllEnchantment()) {
+                        int maxLevel = EnchantmentUtil.getMaxLevel(enchantment);
+                        if (maxLevel > 0) {
+                            enchantmentsByLevel.computeIfAbsent(maxLevel, k -> new ArrayList<>())
                             .add(enchantment);
                     }
+                    }
 
-                    for (Map.Entry<Integer, java.util.List<String>> entry : enchantmentsByLevel.entrySet()) {
+                    for (Map.Entry<Integer, List<String>> entry : enchantmentsByLevel.entrySet()) {
                         int level = entry.getKey();
-                        java.util.List<String> enchantments = entry.getValue();
+                        List<String> enchantments = entry.getValue();
                         enchantments.sort(String.CASE_INSENSITIVE_ORDER);
 
                         sb.append("**Level ").append(level).append("**: ")
@@ -303,6 +366,12 @@ public class VillagerTraderCommand extends Command {
                         .description(sb.toString());
                     return OK;
                 }))
+                .then(literal("buyEnchantBook").then(argument("toggle", toggle()).executes(c -> {
+                    PLUGIN_CONFIG.buyEnchantBook = getToggle(c, "toggle");
+                    c.getSource().getEmbed()
+                            .title("buyEnchantBook " + (PLUGIN_CONFIG.buyEnchantBook ? "Enabled" : "Disabled"));
+                    return OK;
+                })))
             .then(literal("onlyBuyDesiredEnchantments").then(argument("toggle", toggle()).executes(c -> {
                 PLUGIN_CONFIG.onlyBuyDesiredEnchantments = getToggle(c, "toggle");
                 c.getSource().getEmbed()
@@ -331,8 +400,13 @@ public class VillagerTraderCommand extends Command {
             .addField("Restock Emerald Count Threshold", PLUGIN_CONFIG.restockEmeraldCountThreshold)
             .addField("Restock Chest", "||" + (CONFIG.discord.reportCoords ? PLUGIN_CONFIG.restockChest : "Coords disabled") + "||")
             .addField("Store Chest", "||" + (CONFIG.discord.reportCoords ? PLUGIN_CONFIG.storeChest : "Coords disabled") + "||")
+            .addField("Book Restock Chest", "||" + (CONFIG.discord.reportCoords ? PLUGIN_CONFIG.bookRestockChest : "Coords disabled") + "||")
             .addField("Villager Trade Restock Wait", PLUGIN_CONFIG.villagerTradeRestockWaitSeconds + "s")
             .addField("Max Spend Per Trade", PLUGIN_CONFIG.maxSpendPerTrade)
+            .addField("Item Max Spend Settings", PLUGIN_CONFIG.itemMaxSpendPerTrade.isEmpty() ? "[None]" :
+                        PLUGIN_CONFIG.itemMaxSpendPerTrade.entrySet().stream()
+                                .map(e -> e.getKey() + ":" + e.getValue())
+                                .collect(Collectors.joining(", ", "[", "]")))
             .addField("Buy Item Store Stacks Threshold", PLUGIN_CONFIG.buyItemStoreStacksThreshold + " stacks")
             .addField("Wait For Interact Timeout", PLUGIN_CONFIG.waitForInteractTimeoutTicks + " ticks")
             .addField("Desired Enchantments", PLUGIN_CONFIG.desiredEnchantments.isEmpty() ? "[None]" : enchantmentsStr)
