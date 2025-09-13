@@ -15,6 +15,7 @@ zenithProxyPlugin {
 }
 
 repositories {
+    maven("https://maven.2b2t.vc/snapshots")
     maven("https://maven.2b2t.vc/releases") {
         description = "ZenithProxy Releases and Dependencies"
     }

@@ -1,23 +1,57 @@
 package dev.zenith.trader;
 
-import com.google.common.collect.Lists;
 import com.zenith.mc.block.BlockPos;
+import com.zenith.mc.item.ItemData;
 import com.zenith.mc.item.ItemRegistry;
+import it.unimi.dsi.fastutil.objects.Object2IntLinkedOpenHashMap;
 
 import java.util.ArrayList;
+import java.util.Objects;
 
 import static dev.zenith.trader.module.VillagerTrader.VillagerProfession;
 
 public class VillagerTraderConfig {
     public boolean enabled = false;
-    public ArrayList<VillagerProfession> villagerProfessions = Lists.newArrayList(VillagerProfession.CLERIC);
-    public ArrayList<String> buyItems = Lists.newArrayList(ItemRegistry.EXPERIENCE_BOTTLE.name());
-    public int restockStacks = 2;
-    public int restockEmeraldCountThreshold = 64;
-    public BlockPos restockChest = BlockPos.ZERO;
-    public BlockPos storeChest = BlockPos.ZERO;
-    public int buyItemStoreStacksThreshold = 10;
     public int villagerTradeRestockWaitSeconds = 60;
-    public int maxSpendPerTrade = 99;
     public long waitForInteractTimeoutTicks = 20L;
+
+    public ArrayList<Trade> trades = new ArrayList<>();
+
+    public static class Trade {
+        public VillagerProfession villagerProfession = VillagerProfession.CLERIC;
+        public String inputItem1 = ItemRegistry.AIR.name();
+        public String inputItem2 = ItemRegistry.AIR.name();
+        public String outputItem = ItemRegistry.AIR.name();
+        public BlockPos inputItem1Chest = BlockPos.ZERO;
+        public BlockPos inputItem2Chest = BlockPos.ZERO;
+        public BlockPos outputChest = BlockPos.ZERO;
+        public int inputItem1RestockStacks = 2;
+        public int inputItem1RestockCountThreshold = 64;
+        public int inputItem2RestockStacks = 2;
+        public int inputItem2RestockCountThreshold = 64;
+        public int outputItemStoreCountThreshold = 64;
+        public int maxInput1PerTrade = 99;
+        public int maxInput2PerTrade = 99;
+        public Object2IntLinkedOpenHashMap<String> outputItemEnchantments = new Object2IntLinkedOpenHashMap<>();
+
+        public boolean has2InputTrade() {
+            return !Objects.equals(inputItem2, ItemRegistry.AIR.name());
+        }
+
+        public boolean hasEmeraldInputs() {
+            return Objects.equals(inputItem1, ItemRegistry.EMERALD.name()) || Objects.equals(inputItem2, ItemRegistry.EMERALD.name());
+        }
+
+        public ItemData getInputItem1() {
+            return ItemRegistry.REGISTRY.get(inputItem1);
+        }
+
+        public ItemData getInputItem2() {
+            return ItemRegistry.REGISTRY.get(inputItem2);
+        }
+
+        public ItemData getOutputItem() {
+            return ItemRegistry.REGISTRY.get(outputItem);
+        }
+    }
 }
