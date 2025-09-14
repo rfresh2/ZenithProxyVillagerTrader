@@ -33,9 +33,7 @@ public class VillagerTraderCommand extends Command {
             .name("trader")
             .category(CommandCategory.MODULE)
             .description("""
-              Buys items from villagers with emeralds.
-              
-              Automatically restocks emeralds, trades with villagers, and stores the bought items
+              Automatically restocks, trades with villagers, and stores the bought items
               
               `villagerTradeRestockWait` -> seconds it waits after all villagers are out of stock. 1200 = 1 minecraft day
               `waitForInteractTimeout` -> timeout for server interactions like opening villager trade window
@@ -61,6 +59,8 @@ public class VillagerTraderCommand extends Command {
                 "set <index> outputEnchants del <enchantment>",
                 "set <index> outputEnchants clear",
                 "set <index> outputEnchants list",
+                "set <index> postTradeStore <none/to_restock/to_overflow>",
+                "set <index> overflowChest <x> <y> <z>",
                 "villagerTradeRestockWait <seconds>",
                 "waitForInteractTimeout <ticks>"
             )
@@ -341,6 +341,38 @@ public class VillagerTraderCommand extends Command {
                                 c.getSource().getData().put("list", true);
                                 return OK;
                             })))
+                  .then(literal("postTradeStore").then(argument("postTradeStoreMode", enumStrings(VillagerTraderConfig.Trade.PostTradeStoreMode.values())).executes(c -> {
+                      var index = getInteger(c, "index");
+                      if (index >= PLUGIN_CONFIG.trades.size()) {
+                          c.getSource().getEmbed()
+                              .title("Trade Index Not Found")
+                              .description(printAllTrades());
+                          c.getSource().getData().put("list", true);
+                          return ERROR;
+                      }
+                      var mode = VillagerTraderConfig.Trade.PostTradeStoreMode.valueOf(getString(c, "postTradeStoreMode").toUpperCase());
+                      var trade = PLUGIN_CONFIG.trades.get(index);
+                      trade.postTradeStoreMode = mode;
+                      c.getSource().getEmbed()
+                          .title("Post Trade Store Mode Set");
+                      return OK;
+                  })))
+                  .then(literal("overflowChest").then(argument("overflowChestPos", blockPos()).executes(c -> {
+                      var index = getInteger(c, "index");
+                      if (index >= PLUGIN_CONFIG.trades.size()) {
+                          c.getSource().getEmbed()
+                              .title("Trade Index Not Found")
+                              .description(printAllTrades());
+                          c.getSource().getData().put("list", true);
+                          return ERROR;
+                      }
+                      var trade = PLUGIN_CONFIG.trades.get(index);
+                      var pos = getBlockPos(c, "overflowChestPos");
+                      trade.overflowChestPos = pos;
+                      c.getSource().getEmbed()
+                          .title("Overflow Chest Set");
+                      return OK;
+                  })))
             ))
             .then(literal("del").then(argument("index", integer(0)).executes(c -> {
                 var index = getInteger(c, "index");

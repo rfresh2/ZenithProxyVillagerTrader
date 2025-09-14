@@ -25,13 +25,20 @@ public class VillagerTraderConfig {
         public BlockPos inputItem1Chest = BlockPos.ZERO;
         public BlockPos inputItem2Chest = BlockPos.ZERO;
         public BlockPos outputChest = BlockPos.ZERO;
-        public int inputItem1RestockStacks = 2;
+        public int inputItem1RestockStacks = 4;
         public int inputItem1RestockCountThreshold = 64;
-        public int inputItem2RestockStacks = 2;
+        public int inputItem2RestockStacks = 4;
         public int inputItem2RestockCountThreshold = 64;
         public int outputItemStoreCountThreshold = 64;
         public int maxInput1PerTrade = 99;
         public int maxInput2PerTrade = 99;
+        public PostTradeStoreMode postTradeStoreMode = PostTradeStoreMode.NONE;
+        public enum PostTradeStoreMode {
+            NONE,
+            TO_RESTOCK,
+            TO_OVERFLOW
+        }
+        public BlockPos overflowChestPos = BlockPos.ZERO;
         public Object2IntLinkedOpenHashMap<String> outputItemEnchantments = new Object2IntLinkedOpenHashMap<>();
 
         public boolean has2InputTrade() {

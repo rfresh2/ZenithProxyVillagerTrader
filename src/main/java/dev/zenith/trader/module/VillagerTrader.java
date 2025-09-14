@@ -59,6 +59,8 @@ public class VillagerTrader extends Module {
     private RequestFuture purchaseFuture = RequestFuture.rejected;
     private PathingRequestFuture storePathingFuture = PathingRequestFuture.rejected;
     private RequestFuture storeDepositFuture = RequestFuture.rejected;
+    private PathingRequestFuture postTradePathingFuture = PathingRequestFuture.rejected;
+    private RequestFuture postTradeDepositFuture = RequestFuture.rejected;
     private final Timer waitForRestockTimer = Timers.tickTimer();
     private final Timer waitForInteractTimer = Timers.tickTimer();
 
@@ -277,7 +279,7 @@ public class VillagerTrader extends Module {
                         if (countItem(trade.getOutputItem().id()) > 0) {
                             setState(State.STORE_GO_TO_CHEST);
                         } else {
-                            setState(State.NEXT_TRADE);
+                            setState(State.READY_NEXT_TRADE);
 //                            setState(State.WAITING_FOR_VILLAGER_TRADE_RESTOCK);
 //                            waitForRestockTimer.reset();
 //                            inGameAlert("Waiting for villagers to restock trades");
@@ -332,6 +334,8 @@ public class VillagerTrader extends Module {
                         }
                     }
 
+                    int availableTradeCount = villagerTrade.getMaxUses() - villagerTrade.getNumUses(); // each shift click can consume many trades
+
                     int input1StackSize = ItemRegistry.REGISTRY.get(trade.inputItem1).stackSize();
 
                     int baseCostInput1 = villagerTrade.getFirstInput().getAmount();
@@ -339,6 +343,9 @@ public class VillagerTrader extends Module {
                     int input1Cost = MathHelper.clamp(baseCostInput1 + input1DemandCost + villagerTrade.getSpecialPrice(), 1, input1StackSize);
                     if (input1Cost > trade.maxInput1PerTrade) continue;
                     int maxTradesPerInputStack = villagerTrade.getFirstInput().getAmount() / input1Cost;
+                    int input1Count = countItem(trade.getInputItem1().id());
+                    int maxTradesForInput1 = input1Count / input1Cost;
+                    int maxTradeCount = Math.min(availableTradeCount, maxTradesForInput1);
 
                     if (trade.has2InputTrade()) {
                         int input2StackSize = trade.has2InputTrade() ? 64 : ItemRegistry.REGISTRY.get(trade.inputItem2).stackSize();
@@ -348,14 +355,16 @@ public class VillagerTrader extends Module {
                         if (input2Cost > trade.maxInput2PerTrade) continue;
                         int tradersPerInput2Stack = villagerTrade.getSecondInput().getAmount() / input2Cost;
                         maxTradesPerInputStack = Math.min(maxTradesPerInputStack, tradersPerInput2Stack);
+                        int input2Count = countItem(trade.getInputItem2().id());
+                        int maxTradesForInput2 = input2Count / input2Cost;
+                        maxTradeCount = Math.min(maxTradeCount, maxTradesForInput2);
                     }
 
-                    int availableTradeCount = villagerTrade.getMaxUses() - villagerTrade.getNumUses(); // each shift click can consume many trades
                     if (canShiftClickPurchase(villagerTrade)) {
                         int outputsStackSize = ItemRegistry.REGISTRY.get(villagerTrade.getOutput().getId()).stackSize();
                         int maxTradesPerOutputStack = outputsStackSize / villagerTrade.getOutput().getAmount();
                         int maxTradesPerShiftClick = Math.min(maxTradesPerInputStack, maxTradesPerOutputStack);
-                        for (int j = 0; j < availableTradeCount; j+= maxTradesPerShiftClick) {
+                        for (int j = 0; j < maxTradeCount; j+= maxTradesPerShiftClick) {
                             actions.add(new SelectTrade(offersPacket.getContainerId(), i));
                             actions.add(new ShiftClick(offersPacket.getContainerId(), 2, ShiftClickItemAction.LEFT_CLICK));
                         }
@@ -371,7 +380,8 @@ public class VillagerTrader extends Module {
                          * but it doesn't play well with current logic for interacted villager and trade completion tracking
                          */
                         var emptySlots = findEmptySlots();
-                        for (int j = 0; j < Math.min(availableTradeCount, emptySlots.size()); j++) {
+                        maxTradeCount = Math.min(maxTradeCount, emptySlots.size());
+                        for (int j = 0; j < maxTradeCount; j++) {
                             int outputSlot = emptySlots.removeFirst();
                             actions.add(new SelectTrade(offersPacket.getContainerId(), i));
                             actions.add(new ClickItem(offersPacket.getContainerId(), 2, ClickItemAction.LEFT_CLICK));
@@ -449,9 +459,184 @@ public class VillagerTrader extends Module {
                     setState(State.EVAL_RESTOCK);
                 }
             }
+            case READY_NEXT_TRADE -> {
+                var trade = tradeIterator.current();
+                switch (trade.postTradeStoreMode) {
+                    case NONE -> {
+                        setState(State.NEXT_TRADE);
+                    }
+                    case TO_RESTOCK -> {
+                        setState(State.POST_TRADE_INPUT_1_GO_TO);
+                    }
+                    case TO_OVERFLOW -> {
+                        setState(State.POST_TRADE_OVERFLOW_GO_TO);
+                    }
+                }
+            }
+            case POST_TRADE_INPUT_1_GO_TO -> {
+                var trade = tradeIterator.current();
+                postTradePathingFuture = BARITONE.rightClickBlock(trade.inputItem1Chest.x(), trade.inputItem1Chest.y(), trade.inputItem1Chest.z());
+                postTradePathingFuture.addExecutedListener(f -> waitForInteractTimer.reset());
+                setState(State.POST_TRADE_INPUT_1_DEPOSIT);
+            }
+            case POST_TRADE_INPUT_1_DEPOSIT -> {
+                if (postTradePathingFuture.isCompleted()) {
+                    var trade = tradeIterator.current();
+                    var inputItem1 = trade.getInputItem1();
+                    var openContainer = CACHE.getPlayerCache().getInventoryCache().getOpenContainer();
+                    if (openContainer.getContainerId() == 0) {
+                        if (waitForInteractTimer.tick(PLUGIN_CONFIG.waitForInteractTimeoutTicks)) {
+                            setState(State.POST_TRADE_INPUT_1_GO_TO);
+                        }
+                        return;
+                    }
+                    var actions = Lists.newArrayList(
+                        InventoryActionMacros.deposit(
+                            openContainer.getContainerId(),
+                            i -> inputItem1.id() == i.getId()
+                        ));
+                    actions.add(new CloseContainer(openContainer.getContainerId()));
+                    var request = InventoryActionRequest.builder()
+                        .owner(this)
+                        .priority(PRIORITY)
+                        .actions(actions)
+                        .build();
+                    postTradeDepositFuture = INVENTORY.submit(request);
+                    postTradePathingFuture.addExecutedListener(f -> waitForInteractTimer.reset());
+                    setState(State.POST_TRADE_INPUT_1_AWAIT_DEPOSIT);
+                }
+            }
+            case POST_TRADE_INPUT_1_AWAIT_DEPOSIT -> {
+                if (postTradeDepositFuture.isCompleted()) {
+                    var trade = tradeIterator.current();
+                    var inputItem1 = trade.getInputItem1();
+                    if (countItem(inputItem1.id()) > 0) {
+                        if (waitForInteractTimer.tick(PLUGIN_CONFIG.waitForInteractTimeoutTicks)) {
+                            warn("Unable to fully deposit post trade input item 1, trying to continue anyway");
+                        } else {
+                            return;
+                        }
+                    }
+                    if (trade.has2InputTrade()) {
+                        setState(State.POST_TRADE_INPUT_2_GO_TO);
+                    } else {
+                        setState(State.NEXT_TRADE);
+                    }
+                }
+            }
+            case POST_TRADE_INPUT_2_GO_TO -> {
+                var trade = tradeIterator.current();
+                postTradePathingFuture = BARITONE.rightClickBlock(trade.inputItem2Chest.x(), trade.inputItem2Chest.y(), trade.inputItem2Chest.z());
+                postTradePathingFuture.addExecutedListener(f -> waitForInteractTimer.reset());
+                setState(State.POST_TRADE_INPUT_2_DEPOSIT);
+            }
+            case POST_TRADE_INPUT_2_DEPOSIT -> {
+                if (postTradePathingFuture.isCompleted()) {
+                    var trade = tradeIterator.current();
+                    var inputItem2 = trade.getInputItem2();
+                    var openContainer = CACHE.getPlayerCache().getInventoryCache().getOpenContainer();
+                    if (openContainer.getContainerId() == 0) {
+                        if (waitForInteractTimer.tick(PLUGIN_CONFIG.waitForInteractTimeoutTicks)) {
+                            setState(State.POST_TRADE_INPUT_2_GO_TO);
+                        }
+                        return;
+                    }
+                    var actions = Lists.newArrayList(
+                        InventoryActionMacros.deposit(
+                            openContainer.getContainerId(),
+                            i -> inputItem2.id() == i.getId()
+                        ));
+                    actions.add(new CloseContainer(openContainer.getContainerId()));
+                    var request = InventoryActionRequest.builder()
+                        .owner(this)
+                        .priority(PRIORITY)
+                        .actions(actions)
+                        .build();
+                    postTradeDepositFuture = INVENTORY.submit(request);
+                    postTradePathingFuture.addExecutedListener(f -> waitForInteractTimer.reset());
+                    setState(State.POST_TRADE_INPUT_2_AWAIT_DEPOSIT);
+                }
+            }
+            case POST_TRADE_INPUT_2_AWAIT_DEPOSIT -> {
+                if (postTradeDepositFuture.isCompleted()) {
+                    var trade = tradeIterator.current();
+                    var inputItem2 = trade.getInputItem2();
+                    if (countItem(inputItem2.id()) > 0) {
+                        if (waitForInteractTimer.tick(PLUGIN_CONFIG.waitForInteractTimeoutTicks)) {
+                            warn("Unable to fully deposit post trade input item 2, trying to continue anyway");
+                        } else {
+                            return;
+                        }
+                    }
+                    setState(State.NEXT_TRADE);
+                }
+            }
+            case POST_TRADE_OVERFLOW_GO_TO -> {
+                var trade = tradeIterator.current();
+                postTradePathingFuture = BARITONE.rightClickBlock(trade.overflowChestPos.x(), trade.overflowChestPos.y(), trade.overflowChestPos.z());
+                postTradePathingFuture.addExecutedListener(f -> waitForInteractTimer.reset());
+                setState(State.POST_TRADE_OVERFLOW_DEPOSIT);
+            }
+            case POST_TRADE_OVERFLOW_DEPOSIT -> {
+                if (postTradePathingFuture.isCompleted()) {
+                    var trade = tradeIterator.current();
+                    var openContainer = CACHE.getPlayerCache().getInventoryCache().getOpenContainer();
+                    if (openContainer.getContainerId() == 0) {
+                        if (waitForInteractTimer.tick(PLUGIN_CONFIG.waitForInteractTimeoutTicks)) {
+                            setState(State.POST_TRADE_OVERFLOW_GO_TO);
+                        }
+                        return;
+                    }
+                    var inputItem1 = trade.getInputItem1();
+                    var actions = Lists.newArrayList(
+                        InventoryActionMacros.deposit(
+                            openContainer.getContainerId(),
+                            i -> inputItem1.id() == i.getId()
+                        ));
+                    if (trade.has2InputTrade()) {
+                        var inputItem2 = trade.getInputItem2();
+                        actions.addAll(
+                            InventoryActionMacros.deposit(
+                                openContainer.getContainerId(),
+                                i -> inputItem2.id() == i.getId()
+                            ));
+                    }
+                    actions.add(new CloseContainer(openContainer.getContainerId()));
+                    var request = InventoryActionRequest.builder()
+                        .owner(this)
+                        .priority(PRIORITY)
+                        .actions(actions)
+                        .build();
+                    postTradeDepositFuture = INVENTORY.submit(request);
+                    postTradePathingFuture.addExecutedListener(f -> waitForInteractTimer.reset());
+                    setState(State.POST_TRADE_OVERFLOW_AWAIT_DEPOSIT);
+                }
+            }
+            case POST_TRADE_OVERFLOW_AWAIT_DEPOSIT -> {
+                if (postTradeDepositFuture.isCompleted()) {
+                    var trade = tradeIterator.current();
+                    var inputItem1 = trade.getInputItem2();
+                    if (countItem(inputItem1.id()) > 0) {
+                        if (waitForInteractTimer.tick(PLUGIN_CONFIG.waitForInteractTimeoutTicks)) {
+                            warn("Unable to fully deposit post trade input item 1, trying to continue anyway");
+                        } else {
+                            return;
+                        }
+                    }
+                    if (trade.has2InputTrade()) {
+                        var inputItem2 = trade.getInputItem2();
+                        if (countItem(inputItem2.id()) > 0) {
+                            if (waitForInteractTimer.tick(PLUGIN_CONFIG.waitForInteractTimeoutTicks)) {
+                                warn("Unable to fully deposit post trade input item 2, trying to continue anyway");
+                            } else {
+                                return;
+                            }
+                        }
+                    }
+                    setState(State.NEXT_TRADE);
+                }
+            }
             case NEXT_TRADE -> {
-                // todo: deposit any remaining input items back to restock chests?
-                //  or have a set overflow deposit chest?
                 tradeIterator.next();
                 setState(State.ENTRYPOINT);
             }
@@ -591,8 +776,18 @@ public class VillagerTrader extends Module {
         STORE_GO_TO_CHEST,
         STORE_DEPOSIT,
         STORE_AWAIT_DEPOSIT,
-        NEXT_TRADE,
-//        WAITING_FOR_VILLAGER_TRADE_RESTOCK
+        READY_NEXT_TRADE,
+        POST_TRADE,
+        POST_TRADE_INPUT_1_GO_TO,
+        POST_TRADE_INPUT_1_DEPOSIT,
+        POST_TRADE_INPUT_1_AWAIT_DEPOSIT,
+        POST_TRADE_INPUT_2_GO_TO,
+        POST_TRADE_INPUT_2_DEPOSIT,
+        POST_TRADE_INPUT_2_AWAIT_DEPOSIT,
+        POST_TRADE_OVERFLOW_GO_TO,
+        POST_TRADE_OVERFLOW_DEPOSIT,
+        POST_TRADE_OVERFLOW_AWAIT_DEPOSIT,
+        NEXT_TRADE
     }
 
     public enum VillagerProfession {
