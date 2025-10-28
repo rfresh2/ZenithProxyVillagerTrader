@@ -85,6 +85,9 @@ public class VillagerTrader extends Module {
         state = State.ENTRYPOINT;
         interactedVillagersCache.invalidateAll();
         offersPacket = null;
+        waitForInteractTimer.reset();
+        waitForRestockTimer.reset();
+        tradeIterator.reset();
     }
 
     public PacketHandlerCodec registerClientPacketHandlerCodec() {
@@ -265,11 +268,6 @@ public class VillagerTrader extends Module {
             }
             case TRADING_INTERACT_WITH_VILLAGER -> {
                 var trade = tradeIterator.current();
-//                int buyItemCount = countBuyItemSlotUsages();
-//                if (buyItemCount > PLUGIN_CONFIG.buyItemStoreStacksThreshold) {
-//                    setState(State.STORE_GO_TO_CHEST);
-//                    return;
-//                }
                 var nextVillagerOptional = nextVillager(trade);
                 if (nextVillagerOptional.isEmpty()) {
                     if (interactedVillagersCache.asMap().isEmpty()) {
@@ -280,10 +278,6 @@ public class VillagerTrader extends Module {
                             setState(State.STORE_GO_TO_CHEST);
                         } else {
                             setState(State.READY_NEXT_TRADE);
-//                            setState(State.WAITING_FOR_VILLAGER_TRADE_RESTOCK);
-//                            waitForRestockTimer.reset();
-//                            inGameAlert("Waiting for villagers to restock trades");
-//                            info("Waiting {}s for villagers to restock trades", PLUGIN_CONFIG.villagerTradeRestockWaitSeconds);
                         }
                     }
                     return;
@@ -405,11 +399,6 @@ public class VillagerTrader extends Module {
                     } else {
                         setState(State.EVAL_RESTOCK);
                     }
-//                    } else if (countItem(ItemRegistry.EMERALD.id()) < PLUGIN_CONFIG.restockEmeraldCountThreshold) {
-//                        setState(State.RESTOCK_GO_TO_CHEST);
-//                    } else {
-//                        setState(State.TRADING_INTERACT_WITH_VILLAGER);
-//                    }
                 }
             }
             case STORE_GO_TO_CHEST -> {
@@ -758,6 +747,10 @@ public class VillagerTrader extends Module {
         return output;
     }
 
+    public void onTradeListChange() {
+        reset();
+    }
+
     public enum State {
         ENTRYPOINT,
         EVAL_RESTOCK,
@@ -787,7 +780,8 @@ public class VillagerTrader extends Module {
         POST_TRADE_OVERFLOW_GO_TO,
         POST_TRADE_OVERFLOW_DEPOSIT,
         POST_TRADE_OVERFLOW_AWAIT_DEPOSIT,
-        NEXT_TRADE
+        NEXT_TRADE,
+        AWAIT_RESTOCK
     }
 
     public enum VillagerProfession {
@@ -816,22 +810,35 @@ public class VillagerTrader extends Module {
 
     public static class TradeIterator implements Iterator<VillagerTraderConfig.Trade> {
         int index = 0;
+        VillagerTraderConfig.Trade[] backingArray = PLUGIN_CONFIG.trades.values().toArray(new VillagerTraderConfig.Trade[0]);
 
         @Override
         public boolean hasNext() {
-            return !PLUGIN_CONFIG.trades.isEmpty();
+            return backingArray.length > 0;
         }
 
         public VillagerTraderConfig.Trade current() {
-            return PLUGIN_CONFIG.trades.get(index);
+            return backingArray[index];
         }
 
         @Override
         public VillagerTraderConfig.Trade next() {
-            if (++index >= PLUGIN_CONFIG.trades.size()) {
+            if (++index >= backingArray.length) {
                 index = 0;
             }
-            return PLUGIN_CONFIG.trades.get(index);
+            return backingArray[index];
+        }
+
+        public void refresh() {
+            backingArray = PLUGIN_CONFIG.trades.values().toArray(new VillagerTraderConfig.Trade[0]);
+            if (index >= backingArray.length) {
+                index = 0;
+            }
+        }
+
+        public void reset() {
+            index = 0;
+            refresh();
         }
     }
 }

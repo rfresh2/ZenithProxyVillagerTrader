@@ -5,17 +5,16 @@ import com.zenith.mc.item.ItemData;
 import com.zenith.mc.item.ItemRegistry;
 import it.unimi.dsi.fastutil.objects.Object2IntLinkedOpenHashMap;
 
-import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.Objects;
 
 import static dev.zenith.trader.module.VillagerTrader.VillagerProfession;
 
 public class VillagerTraderConfig {
     public boolean enabled = false;
-    public int villagerTradeRestockWaitSeconds = 60;
     public long waitForInteractTimeoutTicks = 20L;
 
-    public ArrayList<Trade> trades = new ArrayList<>();
+    public LinkedHashMap<String, Trade> trades = new LinkedHashMap<>();
 
     public static class Trade {
         public VillagerProfession villagerProfession = VillagerProfession.CLERIC;
