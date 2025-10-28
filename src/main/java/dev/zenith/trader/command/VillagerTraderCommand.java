@@ -83,7 +83,10 @@ public class VillagerTraderCommand extends Command {
                     trade.outputItem = buyItem.name();
                     trade.inputItem1Chest = inputItem1Pos;
                     trade.outputChest = storeChestPos;
-                    PLUGIN_CONFIG.trades.put(id, trade);
+                    inEventLoop(() -> {
+                        PLUGIN_CONFIG.trades.put(id, trade);
+                        MODULE.get(VillagerTrader.class).onTradeListChange();
+                    });
                     c.getSource().getEmbed()
                         .title("Trade Added")
                         .description(printTrade(id, trade));
@@ -105,7 +108,10 @@ public class VillagerTraderCommand extends Command {
                     trade.inputItem1Chest = inputItem1Pos;
                     trade.inputItem2Chest = inputItem2Pos;
                     trade.outputChest = storeChestPos;
-                    PLUGIN_CONFIG.trades.put(id, trade);
+                    inEventLoop(() -> {
+                        PLUGIN_CONFIG.trades.put(id, trade);
+                        MODULE.get(VillagerTrader.class).onTradeListChange();
+                    });
                     c.getSource().getEmbed()
                         .title("Trade Added")
                         .description(printTrade(id, trade));
