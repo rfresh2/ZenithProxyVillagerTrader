@@ -23,6 +23,7 @@ import static com.zenith.command.brigadier.ItemArgument.getItem;
 import static com.zenith.command.brigadier.ItemArgument.item;
 import static com.zenith.command.brigadier.RegistryDataArgument.enchantment;
 import static com.zenith.command.brigadier.RegistryDataArgument.getEnchantment;
+import static com.zenith.command.brigadier.TimeArgument.time;
 import static com.zenith.command.brigadier.ToggleArgumentType.getToggle;
 import static com.zenith.command.brigadier.ToggleArgumentType.toggle;
 import static dev.zenith.trader.VillagerTraderPlugin.PLUGIN_CONFIG;
@@ -38,19 +39,15 @@ public class VillagerTraderCommand extends Command {
               Automatically restocks, trades with villagers, and stores the bought items.
               
               Multiple trades can be configured, each for different villager professions and items.
-              Each trade is associated with an `index` - which counts up from 0.
-              Adding a trade will assign it the next available index.
-              Removing a trade will delete it and shift down the index of all trades after it.
               
-              See `set help` for additional commands that modify trade settings
+              See `set help` for additional commands that modify trade settings, like enchantments, post trade storage modes, and restock amounts.
               
               `waitForInteractTimeout` -> timeout for server interactions like opening villager trade window
               """)
             .usageLines(
                 "on/off",
-                "add",
-                "add <id> <profession> <inputItem1> <inputItem2> <outputItem> <inputItem1ChestPos> <inputItem2ChestPos> <outputChestPos>",
                 "add <id> <profession> <inputItem1> <outputItem> <inputItem1ChestPos> <outputChestPos>",
+                "add <id> <profession> <inputItem1> <inputItem2> <outputItem> <inputItem1ChestPos> <inputItem2ChestPos> <outputChestPos>",
                 "del <id>",
                 "clear",
                 "list",
@@ -480,7 +477,7 @@ public class VillagerTraderCommand extends Command {
                     .description(printAllTrades());
                 c.getSource().getData().put("list", true);
             }))
-            .then(literal("waitForInteractTimeout").then(argument("ticks", integer(1, 1000)).executes(c -> {;
+            .then(literal("waitForInteractTimeout").then(argument("ticks", time()).executes(c -> {;
                 PLUGIN_CONFIG.waitForInteractTimeoutTicks = getInteger(c, "ticks");
                 c.getSource().getEmbed()
                     .title("Wait For Interact Timeout Set");
