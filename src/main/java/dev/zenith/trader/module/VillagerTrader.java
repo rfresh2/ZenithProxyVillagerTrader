@@ -11,6 +11,7 @@ import com.zenith.feature.inventory.InventoryActionRequest;
 import com.zenith.feature.inventory.actions.*;
 import com.zenith.feature.inventory.util.InventoryActionMacros;
 import com.zenith.feature.inventory.util.InventoryUtil;
+import com.zenith.feature.pathfinder.Baritone;
 import com.zenith.feature.pathfinder.PathingRequestFuture;
 import com.zenith.mc.enchantment.EnchantmentRegistry;
 import com.zenith.mc.item.ContainerTypeInfoRegistry;
@@ -46,7 +47,6 @@ import static com.zenith.Globals.*;
 import static dev.zenith.trader.VillagerTraderPlugin.PLUGIN_CONFIG;
 
 public class VillagerTrader extends Module {
-    public static final int PRIORITY = 9000;
     private State state = State.ENTRYPOINT;
     private final Cache<Integer, Boolean> interactedVillagersCache = CacheBuilder.newBuilder()
         .build();
@@ -79,6 +79,10 @@ public class VillagerTrader extends Module {
     @Override
     public void onDisable() {
         reset();
+    }
+
+    private int getPriority() {
+        return Baritone.getPriority() + 100;
     }
 
     private void reset() {
@@ -163,7 +167,7 @@ public class VillagerTrader extends Module {
                         var request = InventoryActionRequest.builder()
                             .owner(this)
                             .actions(actions)
-                            .priority(PRIORITY)
+                            .priority(getPriority())
                             .build();
                         restockWithdrawFuture = INVENTORY.submit(request);
                         setState(State.RESTOCK_INPUT_1_AWAIT_WITHDRAW);
@@ -211,7 +215,7 @@ public class VillagerTrader extends Module {
                         var request = InventoryActionRequest.builder()
                             .owner(this)
                             .actions(actions)
-                            .priority(PRIORITY)
+                            .priority(getPriority())
                             .build();
                         restockWithdrawFuture = INVENTORY.submit(request);
                         setState(State.RESTOCK_INPUT_2_AWAIT_WITHDRAW);
@@ -252,7 +256,7 @@ public class VillagerTrader extends Module {
                 emeraldBlockCraftFuture = INVENTORY.submit(InventoryActionRequest.builder()
                     .owner(this)
                     .actions(actions)
-                    .priority(PRIORITY)
+                    .priority(getPriority())
                     .build());
                 setState(State.AWAIT_CRAFT_EMERALD_BLOCKS);
             }
@@ -386,7 +390,7 @@ public class VillagerTrader extends Module {
                 actions.add(new CloseContainer(offersPacket.getContainerId()));
                 purchaseFuture = INVENTORY.submit(InventoryActionRequest.builder()
                     .owner(this)
-                    .priority(PRIORITY)
+                    .priority(getPriority())
                     .actions(actions)
                     .build());
                 setState(State.TRADING_AWAIT_PURCHASE);
@@ -427,7 +431,7 @@ public class VillagerTrader extends Module {
                     actions.add(new CloseContainer(openContainer.getContainerId()));
                     storeDepositFuture = INVENTORY.submit(InventoryActionRequest.builder()
                         .owner(this)
-                        .priority(PRIORITY)
+                        .priority(getPriority())
                         .actions(actions)
                         .build());
                     storePathingFuture.addExecutedListener(f -> waitForInteractTimer.reset());
@@ -487,7 +491,7 @@ public class VillagerTrader extends Module {
                     actions.add(new CloseContainer(openContainer.getContainerId()));
                     var request = InventoryActionRequest.builder()
                         .owner(this)
-                        .priority(PRIORITY)
+                        .priority(getPriority())
                         .actions(actions)
                         .build();
                     postTradeDepositFuture = INVENTORY.submit(request);
@@ -538,7 +542,7 @@ public class VillagerTrader extends Module {
                     actions.add(new CloseContainer(openContainer.getContainerId()));
                     var request = InventoryActionRequest.builder()
                         .owner(this)
-                        .priority(PRIORITY)
+                        .priority(getPriority())
                         .actions(actions)
                         .build();
                     postTradeDepositFuture = INVENTORY.submit(request);
@@ -593,7 +597,7 @@ public class VillagerTrader extends Module {
                     actions.add(new CloseContainer(openContainer.getContainerId()));
                     var request = InventoryActionRequest.builder()
                         .owner(this)
-                        .priority(PRIORITY)
+                        .priority(getPriority())
                         .actions(actions)
                         .build();
                     postTradeDepositFuture = INVENTORY.submit(request);
