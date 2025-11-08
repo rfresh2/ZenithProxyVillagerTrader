@@ -40,7 +40,10 @@ import org.geysermc.mcprotocollib.protocol.data.game.item.component.DataComponen
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.inventory.ClientboundMerchantOffersPacket;
 import org.jspecify.annotations.NonNull;
 
-import java.util.*;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Optional;
 
 import static com.github.rfresh2.EventConsumer.of;
 import static com.zenith.Globals.*;
@@ -239,8 +242,7 @@ public class VillagerTrader extends Module {
                     setState(State.TRADING_INTERACT_WITH_VILLAGER);
                     return;
                 }
-                int emptySlots = countInvEmptySlots();
-                if (emptySlots < 4) {
+                if (countInvEmptySlots() < 4) {
                     setState(State.TRADING_INTERACT_WITH_VILLAGER);
                     return;
                 }
@@ -340,10 +342,14 @@ public class VillagerTrader extends Module {
                     int input1DemandCost = Math.max(0, MathHelper.floorI((villagerTrade.getFirstInput().getAmount() * villagerTrade.getDemand() * villagerTrade.getPriceMultiplier())));
                     int input1Cost = MathHelper.clamp(baseCostInput1 + input1DemandCost + villagerTrade.getSpecialPrice(), 1, input1StackSize);
                     if (input1Cost > trade.maxInput1PerTrade) continue;
-                    int maxTradesPerInputStack = villagerTrade.getFirstInput().getAmount() / input1Cost;
+                    int maxTradesPerInputStack = input1StackSize / input1Cost;
                     int input1Count = countItem(trade.getInputItem1().id());
                     int maxTradesForInput1 = input1Count / input1Cost;
                     int maxTradeCount = Math.min(availableTradeCount, maxTradesForInput1);
+
+                    if (maxTradeCount == 0) {
+                        info("Can't trade because not enough {} (have {}, need at least {})", ItemRegistry.REGISTRY.get(trade.inputItem1).name(), input1Count, input1Cost);
+                    }
 
                     if (trade.has2InputTrade()) {
                         int input2StackSize = trade.has2InputTrade() ? 64 : ItemRegistry.REGISTRY.get(trade.inputItem2).stackSize();
@@ -355,17 +361,24 @@ public class VillagerTrader extends Module {
                         maxTradesPerInputStack = Math.min(maxTradesPerInputStack, tradersPerInput2Stack);
                         int input2Count = countItem(trade.getInputItem2().id());
                         int maxTradesForInput2 = input2Count / input2Cost;
+                        boolean hadEnoughInput1ToTrade = maxTradeCount > 0;
                         maxTradeCount = Math.min(maxTradeCount, maxTradesForInput2);
+                        if (maxTradeCount == 0 && hadEnoughInput1ToTrade) {
+                            info("Can't trade because not enough {} (have {}, need {})", ItemRegistry.REGISTRY.get(trade.inputItem2).name(), input2Count, input2Cost);
+                        }
                     }
 
                     if (canShiftClickPurchase(villagerTrade)) {
                         int outputsStackSize = ItemRegistry.REGISTRY.get(villagerTrade.getOutput().getId()).stackSize();
                         int maxTradesPerOutputStack = outputsStackSize / villagerTrade.getOutput().getAmount();
                         int maxTradesPerShiftClick = Math.min(maxTradesPerInputStack, maxTradesPerOutputStack);
+                        int tradeCount = 0;
                         for (int j = 0; j < maxTradeCount; j+= maxTradesPerShiftClick) {
+                            tradeCount++;
                             actions.add(new SelectTrade(offersPacket.getContainerId(), i));
                             actions.add(new ShiftClick(offersPacket.getContainerId(), 2, ShiftClickItemAction.LEFT_CLICK));
                         }
+                        debug("shift clicking {} times, trade count: {} trades per shift click: {}", tradeCount, maxTradeCount, maxTradesPerShiftClick);
                     } else {
                         /**
                          * If there are multiple enchanted books available to trade
@@ -378,6 +391,9 @@ public class VillagerTrader extends Module {
                          * but it doesn't play well with current logic for interacted villager and trade completion tracking
                          */
                         var emptySlots = findEmptySlots();
+                        if (emptySlots.isEmpty()) {
+                            info("Can't trade because we don't have any empty inventory slots");
+                        }
                         maxTradeCount = Math.min(maxTradeCount, emptySlots.size());
                         for (int j = 0; j < maxTradeCount; j++) {
                             int outputSlot = emptySlots.removeFirst();
@@ -385,6 +401,7 @@ public class VillagerTrader extends Module {
                             actions.add(new ClickItem(offersPacket.getContainerId(), 2, ClickItemAction.LEFT_CLICK));
                             actions.add(new ClickItem(offersPacket.getContainerId(), outputSlot, ClickItemAction.LEFT_CLICK));
                         }
+                        debug("click trading {} times", maxTradeCount);
                     }
                 }
                 actions.add(new CloseContainer(offersPacket.getContainerId()));
@@ -398,7 +415,7 @@ public class VillagerTrader extends Module {
             case TRADING_AWAIT_PURCHASE -> {
                 if (purchaseFuture.isCompleted()) {
                     var trade = tradeIterator.current();
-                    if (countSlotUsages(trade.getOutputItem().id()) > trade.outputItemStoreCountThreshold) {
+                    if (countItem(trade.getInputItem1().id()) > trade.outputItemStoreCountThreshold) {
                         setState(State.STORE_GO_TO_CHEST);
                     } else {
                         setState(State.EVAL_RESTOCK);
@@ -730,10 +747,22 @@ public class VillagerTrader extends Module {
         return count;
     }
 
-    private boolean canShiftClickPurchase(VillagerTrade trade) {
-        int count = (int) Arrays.asList(offersPacket.getTrades()).stream()
-            .filter(t -> t.getOutput().getId() == trade.getOutput().getId())
-            .count();
+    private boolean canShiftClickPurchase(VillagerTrade villagerTrade) {
+        int count = 0;
+        for (var offer : offersPacket.getTrades()) {
+            if (villagerTrade.getOutput().getId() != offer.getOutput().getId()) continue;
+            if (villagerTrade.getFirstInput().getId() != offer.getFirstInput().getId()) continue;
+            boolean offerHasInput2 = offer.getSecondInput() != Container.EMPTY_STACK;
+            boolean villagerTradeHasInput2 = villagerTrade.getSecondInput() != Container.EMPTY_STACK;
+            if (offerHasInput2 && villagerTradeHasInput2) {
+                if (villagerTrade.getSecondInput().getId() == offer.getSecondInput().getId()) {
+                    count++;
+                }
+            } else if (!offerHasInput2 && !villagerTradeHasInput2) {
+                count++;
+            }
+
+        }
         if (count > 1) return false;
         return true;
     }
@@ -770,6 +799,7 @@ public class VillagerTrader extends Module {
         TRADING_AWAIT_INTERACT_WITH_VILLAGER,
         TRADING_TRY_START_PURCHASE,
         TRADING_AWAIT_PURCHASE,
+        // todo: states to compact stackable items in inventory with shift clicks
         STORE_GO_TO_CHEST,
         STORE_DEPOSIT,
         STORE_AWAIT_DEPOSIT,
