@@ -127,6 +127,9 @@ public class VillagerTraderCommand extends Command {
                         "set <id> maxInput2PerTrade <count>",
                         "set <id> inputItem1RestockStacks <count>",
                         "set <id> inputItem2RestockStacks <count>",
+                        "set <id> inputItem1RestockCountThreshold <count>",
+                        "set <id> inputItem2RestockCountThreshold <count>",
+                        "set <id> outputItemStoreCountThreshold <count>",
                         "set <id> outputEnchants add <enchantment> <level>",
                         "set <id> outputEnchants del <enchantment>",
                         "set <id> outputEnchants clear",
@@ -332,6 +335,57 @@ public class VillagerTraderCommand extends Command {
                         trade.inputItem2RestockStacks = getInteger(c, "inputItem2RestockStacks");
                         c.getSource().getEmbed()
                             .title("Input Item 2 Restock Stacks Set")
+                            .description(printTrade(id, trade));
+                        return OK;
+                    })))
+                    .then(literal("inputItem1RestockCountThreshold").then(argument("inputItem1RestockCount", integer(1)).executes(c -> {
+                        var id = CustomStringArgumentType.getString(c, "id");
+                        if (!PLUGIN_CONFIG.trades.containsKey(id)) {
+                            c.getSource().getEmbed()
+                                .title("Trade ID Not Found")
+                                .addField("ID", id)
+                                .description(printAllTrades());
+                            c.getSource().getData().put("list", true);
+                            return ERROR;
+                        }
+                        var trade = PLUGIN_CONFIG.trades.get(id);
+                        trade.inputItem1RestockCountThreshold = getInteger(c, "inputItem1RestockCount");
+                        c.getSource().getEmbed()
+                            .title("Input Item 1 Restock Count Threshold Set")
+                            .description(printTrade(id, trade));
+                        return OK;
+                    })))
+                    .then(literal("inputItem2RestockCountThreshold").then(argument("inputItem2RestockCount", integer(1)).executes(c -> {
+                        var id = CustomStringArgumentType.getString(c, "id");
+                        if (!PLUGIN_CONFIG.trades.containsKey(id)) {
+                            c.getSource().getEmbed()
+                                .title("Trade ID Not Found")
+                                .addField("ID", id)
+                                .description(printAllTrades());
+                            c.getSource().getData().put("list", true);
+                            return ERROR;
+                        }
+                        var trade = PLUGIN_CONFIG.trades.get(id);
+                        trade.inputItem2RestockCountThreshold = getInteger(c, "inputItem2RestockCount");
+                        c.getSource().getEmbed()
+                            .title("Input Item 2 Restock Count Threshold Set")
+                            .description(printTrade(id, trade));
+                        return OK;
+                    })))
+                    .then(literal("outputItemStoreCountThreshold").then(argument("outputItemStoreCount", integer(1)).executes(c -> {
+                        var id = CustomStringArgumentType.getString(c, "id");
+                        if (!PLUGIN_CONFIG.trades.containsKey(id)) {
+                            c.getSource().getEmbed()
+                                .title("Trade ID Not Found")
+                                .addField("ID", id)
+                                .description(printAllTrades());
+                            c.getSource().getData().put("list", true);
+                            return ERROR;
+                        }
+                        var trade = PLUGIN_CONFIG.trades.get(id);
+                        trade.outputItemStoreCountThreshold = getInteger(c, "outputItemStoreCount");
+                        c.getSource().getEmbed()
+                            .title("Output Item Store Count Threshold Set")
                             .description(printTrade(id, trade));
                         return OK;
                     })))
