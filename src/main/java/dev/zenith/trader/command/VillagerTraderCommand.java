@@ -7,6 +7,7 @@ import com.zenith.command.api.CommandCategory;
 import com.zenith.command.api.CommandContext;
 import com.zenith.command.api.CommandUsage;
 import com.zenith.command.brigadier.CustomStringArgumentType;
+import com.zenith.feature.player.World;
 import dev.zenith.trader.VillagerTraderConfig;
 import dev.zenith.trader.module.VillagerTrader;
 
@@ -73,7 +74,17 @@ public class VillagerTraderCommand extends Command {
                     var inputItem1 = getItem(c, "inputItem1");
                     var buyItem = getItem(c, "buyItem");
                     var inputItem1Pos = getBlockPos(c, "inputItem1Pos");
+                    if (World.isChunkLoadedBlockPos(inputItem1Pos.x(), inputItem1Pos.z())) {
+                        var input1ChestBlock = World.getBlock(inputItem1Pos);
+                        c.getSource().getEmbed()
+                            .addField("Block At Input 1 Pos", input1ChestBlock.name());
+                    }
                     var storeChestPos = getBlockPos(c, "storeChestPos");
+                    if (World.isChunkLoadedBlockPos(storeChestPos.x(), storeChestPos.z())) {
+                        var storeChestBlock = World.getBlock(storeChestPos);
+                        c.getSource().getEmbed()
+                            .addField("Block At Output Pos", storeChestBlock.name());
+                    }
                     var trade = new VillagerTraderConfig.Trade();
                     trade.villagerProfession = profession;
                     trade.inputItem1 = inputItem1.name();
@@ -95,8 +106,23 @@ public class VillagerTraderCommand extends Command {
                     var inputItem2 = getItem(c, "inputItem2");
                     var buyItem = getItem(c, "buyItem");
                     var inputItem1Pos = getBlockPos(c, "inputItem1Pos");
+                    if (World.isChunkLoadedBlockPos(inputItem1Pos.x(), inputItem1Pos.z())) {
+                        var input1ChestBlock = World.getBlock(inputItem1Pos);
+                        c.getSource().getEmbed()
+                            .addField("Block At Input 1 Pos", input1ChestBlock.name());
+                    }
                     var inputItem2Pos = getBlockPos(c, "inputItem2Pos");
+                    if (World.isChunkLoadedBlockPos(inputItem2Pos.x(), inputItem2Pos.z())) {
+                        var input2ChestBlock = World.getBlock(inputItem2Pos);
+                        c.getSource().getEmbed()
+                            .addField("Block At Input 2 Pos", input2ChestBlock.name());
+                    }
                     var storeChestPos = getBlockPos(c, "storeChestPos");
+                    if (World.isChunkLoadedBlockPos(storeChestPos.x(), storeChestPos.z())) {
+                        var storeChestBlock = World.getBlock(storeChestPos);
+                        c.getSource().getEmbed()
+                            .addField("Block At Output Pos", storeChestBlock.name());
+                    }
                     var trade = new VillagerTraderConfig.Trade();
                     trade.villagerProfession = profession;
                     trade.inputItem1 = inputItem1.name();
@@ -226,6 +252,11 @@ public class VillagerTraderCommand extends Command {
                         }
                         var trade = PLUGIN_CONFIG.trades.get(id);
                         var inputItem1Chest = getBlockPos(c, "inputItem1Chest");
+                        if (World.isChunkLoadedBlockPos(inputItem1Chest.x(), inputItem1Chest.z())) {
+                            var input1ChestBlock = World.getBlock(inputItem1Chest);
+                            c.getSource().getEmbed()
+                                .addField("Block At Input 1 Pos", input1ChestBlock.name());
+                        }
                         trade.inputItem1Chest = inputItem1Chest;
                         c.getSource().getEmbed()
                             .title("Input Item 1 Chest Set")
@@ -244,6 +275,11 @@ public class VillagerTraderCommand extends Command {
                         }
                         var trade = PLUGIN_CONFIG.trades.get(id);
                         var inputItem2Chest = getBlockPos(c, "inputItem2Chest");
+                        if (World.isChunkLoadedBlockPos(inputItem2Chest.x(), inputItem2Chest.z())) {
+                            var input1ChestBlock = World.getBlock(inputItem2Chest);
+                            c.getSource().getEmbed()
+                                .addField("Block At Input 2 Pos", input1ChestBlock.name());
+                        }
                         trade.inputItem2Chest = inputItem2Chest;
                         c.getSource().getEmbed()
                             .title("Input Item 2 Chest Set")
@@ -262,6 +298,11 @@ public class VillagerTraderCommand extends Command {
                         }
                         var trade = PLUGIN_CONFIG.trades.get(id);
                         var outputChest = getBlockPos(c, "outputChest");
+                        if (World.isChunkLoadedBlockPos(outputChest.x(), outputChest.z())) {
+                            var storeChestBlock = World.getBlock(outputChest);
+                            c.getSource().getEmbed()
+                                .addField("Block At Output Pos", storeChestBlock.name());
+                        }
                         trade.outputChest = outputChest;
                         c.getSource().getEmbed()
                             .title("Output Chest Set")
@@ -491,6 +532,11 @@ public class VillagerTraderCommand extends Command {
                         }
                         var trade = PLUGIN_CONFIG.trades.get(id);
                         var pos = getBlockPos(c, "overflowChestPos");
+                        if (World.isChunkLoadedBlockPos(pos.x(), pos.z())) {
+                            var storeChestBlock = World.getBlock(pos);
+                            c.getSource().getEmbed()
+                                .addField("Block At Overflow Pos", storeChestBlock.name());
+                        }
                         trade.overflowChestPos = pos;
                         c.getSource().getEmbed()
                             .title("Overflow Chest Set");
