@@ -4,6 +4,7 @@ import com.github.rfresh2.EventConsumer;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Lists;
+import com.zenith.Proxy;
 import com.zenith.cache.data.entity.EntityLiving;
 import com.zenith.cache.data.inventory.Container;
 import com.zenith.event.client.ClientBotTick;
@@ -75,6 +76,7 @@ public class VillagerTrader extends Module {
     public List<EventConsumer<?>> registerEvents() {
         return List.of(
             of(ClientBotTick.class, this::onTick),
+            of(ClientBotTick.Starting.class, e -> reset()),
             of(ClientBotTick.Stopped.class, e -> reset())
         );
     }
@@ -113,6 +115,8 @@ public class VillagerTrader extends Module {
     }
 
     private void onTick(ClientBotTick event) {
+        if (Proxy.getInstance().isInQueue()) return;
+        if (!CACHE.getPlayerCache().getThePlayer().isAlive()) return;
         switch (state) {
             case ENTRYPOINT -> {
                 if (!tradeIterator.hasNext())
