@@ -415,7 +415,7 @@ public class VillagerTrader extends Module {
             case TRADING_AWAIT_PURCHASE -> {
                 if (purchaseFuture.isCompleted()) {
                     var trade = tradeIterator.current();
-                    if (countItem(trade.getInputItem1().id()) > trade.outputItemStoreCountThreshold) {
+                    if (countItem(trade.getOutputItem().id()) > trade.outputItemStoreCountThreshold) {
                         setState(State.STORE_GO_TO_CHEST);
                     } else {
                         setState(State.EVAL_RESTOCK);
