@@ -844,7 +844,10 @@ public class VillagerTrader extends Module {
 
     public static class TradeIterator implements Iterator<VillagerTraderConfig.Trade> {
         int index = 0;
-        VillagerTraderConfig.Trade[] backingArray = PLUGIN_CONFIG.trades.values().toArray(new VillagerTraderConfig.Trade[0]);
+        VillagerTraderConfig.Trade[] backingArray = PLUGIN_CONFIG.trades.values()
+            .stream()
+            .filter(trade -> trade.enabled)
+            .toArray(VillagerTraderConfig.Trade[]::new);
 
         @Override
         public boolean hasNext() {
@@ -864,7 +867,10 @@ public class VillagerTrader extends Module {
         }
 
         public void refresh() {
-            backingArray = PLUGIN_CONFIG.trades.values().toArray(new VillagerTraderConfig.Trade[0]);
+            backingArray = PLUGIN_CONFIG.trades.values()
+                .stream()
+                .filter(trade -> trade.enabled)
+                .toArray(VillagerTraderConfig.Trade[]::new);
             if (index >= backingArray.length) {
                 index = 0;
             }

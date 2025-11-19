@@ -142,6 +142,7 @@ public class VillagerTraderCommand extends Command {
             .then(literal("set")
                 .then(literal("help").executes(c -> {
                     List<String> setCommands = List.of(
+                        "set <id> on/off",
                         "set <id> profession <profession>",
                         "set <id> inputItem1 <item>",
                         "set <id> inputItem2 <item>",
@@ -169,6 +170,26 @@ public class VillagerTraderCommand extends Command {
                     c.getSource().getData().put("list", true);
                 }))
                 .then(argument("id", wordWithChars())
+                    .then(argument("tradeToggle", toggle()).executes(c -> {
+                        var id = CustomStringArgumentType.getString(c, "id");
+                        if (!PLUGIN_CONFIG.trades.containsKey(id)) {
+                            c.getSource().getEmbed()
+                                .title("Trade ID Not Found")
+                                .addField("ID", id)
+                                .description(printAllTrades());
+                            c.getSource().getData().put("list", true);
+                            return ERROR;
+                        }
+                        var trade = PLUGIN_CONFIG.trades.get(id);
+                        trade.enabled = getToggle(c, "tradeToggle");
+                        c.getSource().getEmbed()
+                            .title("Trade " + toggleStrCaps(trade.enabled))
+                            .description(printTrade(id, trade));
+                        inEventLoop(() -> {
+                            MODULE.get(VillagerTrader.class).onTradeListChange();
+                        });
+                        return OK;
+                    }))
                     .then(literal("inputItem1").then(argument("inputItem1", item()).executes(c -> {
                         var id = CustomStringArgumentType.getString(c, "id");
                         if (!PLUGIN_CONFIG.trades.containsKey(id)) {
@@ -628,6 +649,9 @@ public class VillagerTraderCommand extends Command {
         }
         sb.append(" -> ");
         sb.append("`").append(trade.outputItem).append("`");
+        if (!trade.enabled) {
+            sb.append(" (disabled)");
+        }
         return sb.toString();
     }
 
