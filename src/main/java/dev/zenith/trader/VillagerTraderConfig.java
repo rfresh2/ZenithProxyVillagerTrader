@@ -13,6 +13,7 @@ import static dev.zenith.trader.module.VillagerTrader.VillagerProfession;
 public class VillagerTraderConfig {
     public boolean enabled = false;
     public long waitForInteractTimeoutTicks = 20L;
+    public boolean logTradeStatusToDiscord = false;
 
     public LinkedHashMap<String, Trade> trades = new LinkedHashMap<>();
 

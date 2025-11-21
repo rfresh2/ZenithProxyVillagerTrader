@@ -7,6 +7,8 @@ import com.google.common.collect.Lists;
 import com.zenith.Proxy;
 import com.zenith.cache.data.entity.EntityLiving;
 import com.zenith.cache.data.inventory.Container;
+import com.zenith.discord.Embed;
+import com.zenith.discord.EmbedSerializer;
 import com.zenith.event.client.ClientBotTick;
 import com.zenith.feature.inventory.InventoryActionRequest;
 import com.zenith.feature.inventory.actions.*;
@@ -40,11 +42,10 @@ import org.geysermc.mcprotocollib.protocol.data.game.item.ItemStack;
 import org.geysermc.mcprotocollib.protocol.data.game.item.component.DataComponentTypes;
 import org.geysermc.mcprotocollib.protocol.packet.ingame.clientbound.inventory.ClientboundMerchantOffersPacket;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Optional;
+import java.time.Duration;
+import java.util.*;
 
 import static com.github.rfresh2.EventConsumer.of;
 import static com.zenith.Globals.*;
@@ -67,6 +68,13 @@ public class VillagerTrader extends Module {
     private RequestFuture postTradeDepositFuture = RequestFuture.rejected;
     private final Timer waitForRestockTimer = Timers.tickTimer();
     private final Timer waitForInteractTimer = Timers.tickTimer();
+    private int preTradeOutputCount = 0;
+    private int preTradeInput1Count = 0;
+    private int preTradeInput2Count = 0;
+    private int outputBuyCount = 0;
+    private int input1SellCount = 0;
+    private int input2SellCount = 0;
+    private long tradeStartTime = System.nanoTime();
 
     @Override
     public boolean enabledSetting() {
@@ -97,6 +105,17 @@ public class VillagerTrader extends Module {
         waitForInteractTimer.reset();
         waitForRestockTimer.reset();
         tradeIterator.reset();
+        resetTradeCounter();
+    }
+
+    private void resetTradeCounter() {
+        preTradeOutputCount = 0;
+        preTradeInput1Count = 0;
+        preTradeInput2Count = 0;;
+        outputBuyCount = 0;
+        input1SellCount = 0;
+        input2SellCount = 0;
+        tradeStartTime = System.nanoTime();
     }
 
     public PacketHandlerCodec registerClientPacketHandlerCodec() {
@@ -121,6 +140,7 @@ public class VillagerTrader extends Module {
             case ENTRYPOINT -> {
                 if (!tradeIterator.hasNext())
                     return;
+                resetTradeCounter();
                 interactedVillagersCache.invalidateAll();
                 setState(State.EVAL_RESTOCK);
             }
@@ -414,11 +434,25 @@ public class VillagerTrader extends Module {
                     .priority(getPriority())
                     .actions(actions)
                     .build());
+                preTradeInput1Count = countItem(trade.getInputItem1().id());
+                preTradeInput2Count = trade.has2InputTrade() ? countItem(trade.getInputItem2().id()) : 0;
+                preTradeOutputCount = countItem(trade.getOutputItem().id());
                 setState(State.TRADING_AWAIT_PURCHASE);
             }
             case TRADING_AWAIT_PURCHASE -> {
                 if (purchaseFuture.isCompleted()) {
                     var trade = tradeIterator.current();
+                    var input1Sold = preTradeInput1Count - countItem(trade.getInputItem1().id());
+                    info("Sold {} {}", input1Sold, trade.inputItem1);
+                    input1SellCount += input1Sold;
+                    if (trade.has2InputTrade()) {
+                        var input2Sold = preTradeInput2Count - countItem(trade.getInputItem2().id());;
+                        info("Sold {} {}", input2Sold, trade.inputItem2);
+                        input2SellCount += input2Sold;
+                    }
+                    var outputBought = countItem(trade.getOutputItem().id()) - preTradeOutputCount;
+                    info("Bought {} {}", outputBought, trade.getOutputItem());
+                    outputBuyCount += outputBought;
                     if (countItem(trade.getOutputItem().id()) > trade.outputItemStoreCountThreshold) {
                         setState(State.STORE_GO_TO_CHEST);
                     } else {
@@ -651,7 +685,29 @@ public class VillagerTrader extends Module {
                 }
             }
             case NEXT_TRADE -> {
-                tradeIterator.next();
+                var trade = tradeIterator.current();
+                var nextTrade = tradeIterator.next();
+                var tradeDuration = Duration.ofNanos(System.nanoTime() - tradeStartTime);
+                var tradeResult = Embed.builder()
+                    .title("Trade Completed")
+                    .addField("Trade ID", Objects.requireNonNullElse(getTradeId(trade), "?"))
+                    .addField("Duration", MathHelper.formatDuration(tradeDuration))
+                    .addField("Input 1", trade.inputItem1)
+                    .addField("Input 1 Sell Count", input1SellCount);
+                if (trade.has2InputTrade()) {
+                    tradeResult
+                        .addField("Input 2", trade.inputItem2)
+                        .addField("Input 2 Sell Count", input2SellCount);
+                }
+                tradeResult
+                    .addField("Output", trade.outputItem)
+                    .addField("Output Buy Count", outputBuyCount)
+                    .addField("Next Trade", Objects.requireNonNullElse(getTradeId(nextTrade), "?"));
+                if (PLUGIN_CONFIG.logTradeStatusToDiscord) {
+                    discordNotification(tradeResult);
+                } else {
+                    info(EmbedSerializer.serialize(tradeResult));
+                }
                 setState(State.ENTRYPOINT);
             }
         }
@@ -786,6 +842,15 @@ public class VillagerTrader extends Module {
 
     public void onTradeListChange() {
         reset();
+    }
+
+    @Nullable String getTradeId(VillagerTraderConfig.Trade trade) {
+        for (var entry : PLUGIN_CONFIG.trades.entrySet()) {
+            if (entry.getValue() == trade) {
+                return entry.getKey();
+            }
+        }
+        return null;
     }
 
     public enum State {

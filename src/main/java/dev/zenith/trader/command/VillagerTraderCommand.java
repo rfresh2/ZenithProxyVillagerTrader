@@ -53,7 +53,8 @@ public class VillagerTraderCommand extends Command {
                 "clear",
                 "list",
                 "set help",
-                "waitForInteractTimeout <ticks>"
+                "waitForInteractTimeout <ticks>",
+                "logTradeStatusToDiscord on/off"
             )
             .build();
     }
@@ -602,6 +603,11 @@ public class VillagerTraderCommand extends Command {
                 PLUGIN_CONFIG.waitForInteractTimeoutTicks = getInteger(c, "ticks");
                 c.getSource().getEmbed()
                     .title("Wait For Interact Timeout Set");
+            })))
+            .then(literal("logTradeStatusToDiscord").then(argument("toggle", toggle()).executes(c -> {
+                PLUGIN_CONFIG.logTradeStatusToDiscord = getToggle(c, "toggle");
+                c.getSource().getEmbed()
+                    .title("Log Trade Status To Discord " + toggleStrCaps(PLUGIN_CONFIG.logTradeStatusToDiscord));
             })));
     }
 
@@ -610,7 +616,8 @@ public class VillagerTraderCommand extends Command {
         if (!ctx.getData().containsKey("list")) {
             ctx.getEmbed()
                 .addField("Villager Trader", toggleStr(PLUGIN_CONFIG.enabled))
-                .addField("Wait For Interact Timeout", PLUGIN_CONFIG.waitForInteractTimeoutTicks + " ticks");
+                .addField("Wait For Interact Timeout", PLUGIN_CONFIG.waitForInteractTimeoutTicks + " ticks")
+                .addField("Log Trade Status To Discord", PLUGIN_CONFIG.logTradeStatusToDiscord);
         }
         ctx.getEmbed()
             .primaryColor();
