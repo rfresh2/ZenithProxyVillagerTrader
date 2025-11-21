@@ -134,8 +134,10 @@ public class VillagerTrader extends Module {
     }
 
     private void onTick(ClientBotTick event) {
-        if (Proxy.getInstance().isInQueue()) return;
-        if (!CACHE.getPlayerCache().getThePlayer().isAlive()) return;
+        if (Proxy.getInstance().isInQueue() || !CACHE.getPlayerCache().getThePlayer().isAlive()) {
+            state = State.ENTRYPOINT;
+            return;
+        }
         switch (state) {
             case ENTRYPOINT -> {
                 if (!tradeIterator.hasNext())
