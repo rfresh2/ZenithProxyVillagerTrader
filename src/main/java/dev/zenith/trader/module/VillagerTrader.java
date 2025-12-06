@@ -53,7 +53,7 @@ import static dev.zenith.trader.VillagerTraderPlugin.PLUGIN_CONFIG;
 
 public class VillagerTrader extends Module {
     private State state = State.ENTRYPOINT;
-    private final Cache<Integer, Boolean> interactedVillagersCache = CacheBuilder.newBuilder()
+    private final Cache<UUID, Boolean> interactedVillagersCache = CacheBuilder.newBuilder()
         .build();
     private final TradeIterator tradeIterator = new TradeIterator();
     private PathingRequestFuture restockPathingFuture = PathingRequestFuture.rejected;
@@ -118,6 +118,7 @@ public class VillagerTrader extends Module {
         tradeStartTime = System.nanoTime();
     }
 
+    @Override
     public PacketHandlerCodec registerClientPacketHandlerCodec() {
         return PacketHandlerCodec.clientBuilder()
             .setId("villager-trader")
@@ -318,7 +319,7 @@ public class VillagerTrader extends Module {
                 offersPacket = null;
                 interactWithVillagerFuture = BARITONE.rightClickEntity(nextVillager);
                 interactWithVillagerFuture.addExecutedListener(f -> waitForInteractTimer.reset());
-                interactedVillagersCache.put(nextVillager.getEntityId(), true);
+                interactedVillagersCache.put(nextVillager.getUuid(), true);
                 setState(State.TRADING_AWAIT_INTERACT_WITH_VILLAGER);
             }
             case TRADING_AWAIT_INTERACT_WITH_VILLAGER -> {
@@ -758,7 +759,7 @@ public class VillagerTrader extends Module {
     private Optional<EntityLiving> nextVillager(final VillagerTraderConfig.Trade trade) {
         return CACHE.getEntityCache().getEntities().values().stream()
             .filter(e -> e.getEntityType() == EntityType.VILLAGER)
-            .filter(e -> !interactedVillagersCache.asMap().containsKey(e.getEntityId()))
+            .filter(e -> !interactedVillagersCache.asMap().containsKey(e.getUuid()))
             .map(e -> (EntityLiving) e)
             .filter(e -> trade.villagerProfession == getVillagerProfession(e))
             .min(Comparator.comparingDouble(e -> e.distanceSqTo(CACHE.getPlayerCache().getThePlayer())));
