@@ -201,6 +201,11 @@ public class VillagerTrader extends Module {
                             .build();
                         restockWithdrawFuture = INVENTORY.submit(request);
                         setState(State.RESTOCK_INPUT_1_AWAIT_WITHDRAW);
+                    } else {
+                        if (waitForInteractTimer.tick(PLUGIN_CONFIG.waitForInteractTimeoutTicks)) {
+                            error("Timed out waiting for input 1 container to open");
+                            setState(State.RESTOCK_INPUT_1_AWAIT_WITHDRAW);
+                        }
                     }
                 }
             }
@@ -249,6 +254,11 @@ public class VillagerTrader extends Module {
                             .build();
                         restockWithdrawFuture = INVENTORY.submit(request);
                         setState(State.RESTOCK_INPUT_2_AWAIT_WITHDRAW);
+                    } else {
+                        if (waitForInteractTimer.tick(PLUGIN_CONFIG.waitForInteractTimeoutTicks)) {
+                            error("Timed out waiting for input 2 container to open");
+                            setState(State.RESTOCK_INPUT_2_AWAIT_WITHDRAW);
+                        }
                     }
                 }
             }
