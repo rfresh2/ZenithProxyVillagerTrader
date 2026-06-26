@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
 
@@ -22,7 +22,7 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@v6
         with:
           dependency-graph: generate-and-submit
 
@@ -30,10 +30,12 @@ jobs:
         run: ./gradlew build
 
       - name: Upload Plugin Artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: plugin
           path: build/libs/*.jar
+          archive: false
+          if-no-files-found: error
 
       - name: Get Plugin Version
         run: echo "PLUGIN_VERSION=$(grep '^plugin_version=' gradle.properties | cut -d'=' -f2)" >> $GITHUB_ENV

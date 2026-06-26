@@ -8,12 +8,12 @@ import dev.zenith.trader.module.VillagerTrader;
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
 
 @Plugin(
-    id = "villager-trader",
+    id = BuildConstants.PLUGIN_ID,
     version = BuildConstants.VERSION,
     description = "ZenithProxy Villager Trader",
     url = "https://github.com/rfresh2/ZenithProxyVillagerTrader",
     authors = {"rfresh2"},
-    mcVersions = {"1.21.4"}
+    mcVersions = {BuildConstants.MC_VERSION}
 )
 public class VillagerTraderPlugin implements ZenithProxyPlugin {
     public static ComponentLogger LOG;
