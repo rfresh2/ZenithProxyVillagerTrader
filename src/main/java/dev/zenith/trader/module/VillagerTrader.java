@@ -314,8 +314,8 @@ public class VillagerTrader extends Module {
                 var nextVillagerOptional = nextVillager(trade);
                 if (nextVillagerOptional.isEmpty()) {
                     if (interactedVillagersCache.asMap().isEmpty()) {
-                        warn("No villagers found to trade with, going back to restock chest");
-                        setState(State.EVAL_RESTOCK);
+                        warn("No villagers found to trade with");
+                        setState(State.READY_NEXT_TRADE);
                     } else {
                         if (countItem(trade.getOutputItem().id()) > 0) {
                             setState(State.STORE_GO_TO_CHEST);
