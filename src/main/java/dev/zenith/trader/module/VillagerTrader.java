@@ -464,7 +464,7 @@ public class VillagerTrader extends Module {
                         input2SellCount += input2Sold;
                     }
                     var outputBought = countItem(trade.getOutputItem().id()) - preTradeOutputCount;
-                    info("Bought {} {}", outputBought, trade.getOutputItem());
+                    info("Bought {} {}", outputBought, trade.getOutputItem().name());
                     outputBuyCount += outputBought;
                     if (countItem(trade.getOutputItem().id()) > trade.outputItemStoreCountThreshold) {
                         setState(State.STORE_GO_TO_CHEST);
